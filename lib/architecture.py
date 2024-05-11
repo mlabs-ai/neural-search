@@ -51,7 +51,10 @@ class Search(nn.Module):
         # candidates_fitness: (max_width * n_candidates), n_batch, ..., n_dim
         candidates_fitness = self.fitness(candidates).squeeze()
 
-        top_candidates = torch.topk(candidates_fitness, self.beam_width, dim=0).indices
+        if self.train:
+            top_candidates = torch.multinomial(torch.softmax(candidates_fitness.T, dim=-1), self.beam_width).T
+        else:
+            top_candidates = torch.topk(candidates_fitness, self.beam_width, dim=0).indices
 
         # return self.beam_width, n_batch, ..., n_dims
         return candidates.gather(0, top_candidates[..., None].expand(self.beam_width, *candidates.shape[1:]))
