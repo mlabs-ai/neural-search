@@ -6,7 +6,6 @@ class Search(nn.Module):
             self, 
             transition: nn.Module, 
             fitness: nn.Module,
-            sample: nn.Module,
             max_depth: int,
             beam_width: int,
             temperature: float = 1.0
@@ -16,7 +15,6 @@ class Search(nn.Module):
         # search functions
         self.transition = transition
         self.fitness = fitness
-        self.sample = sample
 
         # search parameters
         self.max_depth = max_depth
@@ -41,11 +39,8 @@ class Search(nn.Module):
         return y
 
     def next_states(self, current_states: torch.Tensor):
-        # current_states: n_candidates, n_batch, ..., n_dim
-        next_state_distributions = self.transition(current_states)
-
-        # candidates: (num_samples * n_candidates), n_batch, ..., n_dim
-        candidates = self.sample(next_state_distributions).flatten(0, 1)
+        # current_states: (num_samples * n_candidates), n_batch, ..., n_dim
+        candidates = self.transition(current_states).flatten(0,1)
 
         # candidates_fitness: (max_width * n_candidates), n_batch, ..., n_dim
         candidates_fitness = self.fitness(candidates).squeeze() / self.temperature
@@ -60,3 +55,33 @@ class Search(nn.Module):
 
         # return self.beam_width, n_batch, ..., n_dims
         return candidates.gather(0, top_candidates[..., None].expand(self.beam_width, *candidates.shape[1:]))
+
+class RandomizedSearch(nn.Module):
+    def __init__(
+            self, 
+            transition: nn.Module, 
+            sample: nn.Module,
+            fitness: nn.Module,
+            max_depth: int,
+            beam_width: int,
+            temperature: float = 1.0
+        ):
+        super(RandomizedSearch, self).__init__()
+
+        self.search = Search(
+            nn.Sequential(
+                transition,
+                sample
+            ),
+            fitness,
+            max_depth,
+            beam_width,
+            temperature
+        )
+    
+
+    def set_temperature(self, temperature):
+        self.search.set_temperature(temperature)
+    
+    def forward(self, x):
+        return self.search(x)
