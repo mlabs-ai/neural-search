@@ -14,3 +14,11 @@ class ExpandLinear(nn.Module):
         h = self.linear(x)
 
         return h.reshape(*h.shape[:-1], self.dim, self.factor).movedim(-1, 0)
+
+class Residual(nn.Module):
+    def __init__(self, module: nn.Module):
+        super(Residual, self).__init__()
+        self.module = module
+    
+    def forward(self, x):
+        return x + self.module(x)

@@ -8,7 +8,8 @@ class Search(nn.Module):
             fitness: nn.Module,
             max_depth: int,
             beam_width: int,
-            temperature: float = 1.0
+            temperature: float = 1.0,
+            reuse_parents: bool = False
         ):
         super(Search, self).__init__()
 
@@ -20,6 +21,7 @@ class Search(nn.Module):
         self.max_depth = max_depth
         self.beam_width = beam_width
         self.temperature = temperature
+        self.reuse_parents = reuse_parents
     
     def forward(self, x):
         return self.search(x)
@@ -42,46 +44,39 @@ class Search(nn.Module):
         # current_states: (num_samples * n_candidates), n_batch, ..., n_dim
         candidates = self.transition(current_states).flatten(0,1)
 
+        if self.reuse_parents:
+            candidates = torch.cat([current_states, candidates])
+
         # candidates_fitness: (max_width * n_candidates), n_batch, ..., n_dim
         candidates_fitness = self.fitness(candidates).squeeze() / self.temperature
+
+        if len(candidates) <= self.beam_width:
+            return candidates
 
         if self.train:
             top_candidates = torch.multinomial(torch.softmax(candidates_fitness.T, dim=-1), self.beam_width).T
         else:
             top_candidates = torch.topk(candidates_fitness, self.beam_width, dim=0).indices
-        
+            
         if len(top_candidates.shape) == 1:
             top_candidates = top_candidates[..., None]
 
         # return self.beam_width, n_batch, ..., n_dims
         return candidates.gather(0, top_candidates[..., None].expand(self.beam_width, *candidates.shape[1:]))
 
-class RandomizedSearch(nn.Module):
+class RandomizedSearch(Search):
     def __init__(
             self, 
             transition: nn.Module, 
             sample: nn.Module,
             fitness: nn.Module,
-            max_depth: int,
-            beam_width: int,
-            temperature: float = 1.0
+            **args,
         ):
-        super(RandomizedSearch, self).__init__()
-
-        self.search = Search(
+        super(RandomizedSearch, self).__init__(
             nn.Sequential(
                 transition,
                 sample
             ),
             fitness,
-            max_depth,
-            beam_width,
-            temperature
+            **args
         )
-    
-
-    def set_temperature(self, temperature):
-        self.search.set_temperature(temperature)
-    
-    def forward(self, x):
-        return self.search(x)
