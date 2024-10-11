@@ -1,5 +1,15 @@
-.venv
+# Mac/OSX
+.DS_Store
 
-**.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
 
-runs
+.vscode
+
+nohup.out
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
