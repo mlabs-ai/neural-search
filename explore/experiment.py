@@ -17,7 +17,7 @@ if __name__ == '__main__':
     input_shape = env.observation_space.shape
 
     network = AlphaZeroNet(input_shape = input_shape, num_actions = num_actions, 
-                           num_res_block = 1, num_filters = 32, 
+                           num_res_block = 1, num_filters = 1, 
                            num_fc_units = 1
                            )  
     player = create_mcts_player(network = network, 

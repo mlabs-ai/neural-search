@@ -28,11 +28,11 @@ import torch
 from torch.optim.lr_scheduler import MultiStepLR
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('board_size', 9, 'Board size for Go.')
+flags.DEFINE_integer('board_size', 4, 'Board size for Go.')
 flags.DEFINE_float('komi', 7.5, 'Komi rule for Go.')
 flags.DEFINE_integer(
     'num_stack',
-    8,
+    2,
     'Stack N previous states, the state is an image of N x 2 + 1 binary planes.',
 )
 
@@ -42,23 +42,23 @@ flags.DEFINE_integer(
 # flags.DEFINE_integer('num_fc_units', 64, 'Number of hidden units in the linear layer of the neural network.')
 
 # 11b128 version uses these configurations
-flags.DEFINE_integer('num_res_blocks', 10, 'Number of residual blocks in the neural network.')
-flags.DEFINE_integer('num_filters', 128, 'Number of filters for the conv2d layers in the neural network.')
+flags.DEFINE_integer('num_res_blocks', 1, 'Number of residual blocks in the neural network.')
+flags.DEFINE_integer('num_filters', 1, 'Number of filters for the conv2d layers in the neural network.')
 flags.DEFINE_integer(
     'num_fc_units',
-    128,
+    1,
     'Number of hidden units in the linear layer of the neural network.',
 )
 
-flags.DEFINE_integer('min_games', 20000, 'Collect number of self-play games before learning starts.')
+flags.DEFINE_integer('min_games', 100, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    5000,
+    100,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
 flags.DEFINE_integer(
     'replay_capacity',
-    250000 * 50,
+    25 * 10,
     'Replay buffer capacity is number of game * average game length.' 'Note, 250000 games may need ~30GB of RAM',
 )
 flags.DEFINE_integer(
@@ -90,15 +90,15 @@ flags.DEFINE_integer(
     int(5e5),
     'Number of training steps (measured in network parameter update, one batch is one training step).',
 )
-flags.DEFINE_integer('num_actors', 32, 'Number of self-play actor processes.')
+flags.DEFINE_integer('num_actors', 1, 'Number of self-play actor processes.')
 flags.DEFINE_integer(
     'num_simulations',
-    200,
+    20,
     'Number of simulations per MCTS search, this applies to both self-play and evaluation processes.',
 )
 flags.DEFINE_integer(
     'num_parallel',
-    8,
+    1,
     'Number of leaves to collect before using the neural network to evaluate the positions during MCTS search,'
     '1 means no parallel search.',
 )
@@ -142,13 +142,13 @@ flags.DEFINE_float(
 )
 flags.DEFINE_integer(
     'reset_fp_interval',
-    100000,
+    10,
     'The frequency (measured in number of self-play games) to reset resignation threshold,'
     'so statistics from old games do not influence current play.',
 )
 flags.DEFINE_integer(
     'no_resign_games',
-    50000,
+    50,
     'Initial games played with resignation disable. '
     'This makes sense as when starting out, the prediction from the neural network is not accurate.',
 )
@@ -158,22 +158,22 @@ flags.DEFINE_float(
     0,
     'Default elo rating, change to the rating (for black) from last checkpoint when resume training.',
 )
-flags.DEFINE_integer('ckpt_interval', 1000, 'The frequency (in training step) to create new checkpoint.')
-flags.DEFINE_integer('log_interval', 200, 'The frequency (in training step) to log training statistics.')
-flags.DEFINE_string('ckpt_dir', './checkpoints/go/9x9', 'Path for checkpoint file.')
+flags.DEFINE_integer('ckpt_interval', 100, 'The frequency (in training step) to create new checkpoint.')
+flags.DEFINE_integer('log_interval', 100, 'The frequency (in training step) to log training statistics.')
+flags.DEFINE_string('ckpt_dir', './checkpoints/go/4x4', 'Path for checkpoint file.')
 flags.DEFINE_string(
     'logs_dir',
-    './logs/go/9x9',
+    './logs/go/4x4',
     'Path to save statistics for self-play, training, and evaluation.',
 )
 flags.DEFINE_string(
     'eval_games_dir',
-    './games/pro_games/go/9x9',
+    './games/pro_games/go/4x4',
     'Path contains evaluation games in sgf format.',
 )
 flags.DEFINE_string(
     'save_sgf_dir',
-    './games/selfplay_games/go/9x9',
+    './games/selfplay_games/go/4x4',
     'Path to selfplay and evaluation games in sgf format.',
 )
 flags.DEFINE_integer('save_sgf_interval', 500, 'How often to save self-play games.')
