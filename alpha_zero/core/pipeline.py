@@ -19,6 +19,7 @@ import random
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from pdb import set_trace as bp
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -340,7 +341,10 @@ def play_and_record_one_game(
             if not resign_disabled:
                 move = env.resign_move
 
+
         obs, reward, done, _ = env.step(move)
+        if len(episode_values) >= env.board_size ** 2: 
+            break
 
         if env.has_pass_move and move == env.pass_move:
             num_passes += 1

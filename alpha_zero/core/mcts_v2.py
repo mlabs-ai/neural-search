@@ -49,6 +49,7 @@ import collections
 import math
 from typing import Callable, Tuple, Mapping, Iterable, Any
 import numpy as np
+from pdb import set_trace as bp
 
 from alpha_zero.envs.base import BoardGameEnv
 
@@ -176,6 +177,7 @@ def best_child(
     ucb_scores = np.where(legal_actions == 1, ucb_scores, -9999)
 
     move = np.argmax(ucb_scores)
+
 
     assert legal_actions[move] == 1
 
