@@ -13,7 +13,6 @@ from six import StringIO
 import numpy as np
 import gym
 from gym.spaces import Box, Discrete
-from pdb import set_trace as bp
 
 from alpha_zero.envs.coords import CoordsConvertor
 
@@ -363,4 +362,3 @@ class BoardGameEnv(gym.Env):
     def to_sgf(self) -> str:
         """Game record to sgf content"""
         return
-
