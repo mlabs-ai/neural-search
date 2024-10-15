@@ -194,73 +194,77 @@ def run_selfplay_actor_loop(
     set_seed(int(seed + rank))
     logger = create_logger(log_level)
     logger.info("start self play actor...")
-#     writer = CsvWriter(os.path.join(logs_dir, f'actor{rank}.csv'))
-#     timer = Timer()
-#
-#     played_games = training_steps = 0
-#     last_ckpt = None
-#
-#     should_save_sgf = False
-#     if save_sgf_dir is not None and os.path.isdir(save_sgf_dir) and os.path.exists(save_sgf_dir):
-#         should_save_sgf = True
-#
-#     disable_auto_grad(network)
-#     network = network.to(device=device)
-#
-#     if load_ckpt is not None and os.path.exists(load_ckpt):
-#         loaded_state = torch.load(load_ckpt, map_location=device)
-#         network.load_state_dict(loaded_state['network'])
-#         training_steps = loaded_state['training_steps']
-#         logger.debug(f'Actor{rank} loaded state from checkpoint "{load_ckpt}"')
-#
-#     network.eval()
-#
-#     # resign_threshold <= -1 means no resign
-#     resign_threshold = var_resign_threshold.value if env.has_resign_move else -1
-#     mcts_player = create_mcts_player(
-#         network=network,
-#         device=device,
-#         num_simulations=num_simulations,
-#         num_parallel=num_parallel,
-#         root_noise=True,
-#         deterministic=False,
-#     )
-#
-#     while not stop_event.is_set():
-#         # Wait for learner to finish creating new checkpoint
-#         logger.debug("event run selfplay actor....")
-#         if ckpt_event.is_set():
-#             continue
-#
-#         new_ckpt = _decode_bytes(var_ckpt.value)
-#         if new_ckpt != '' and new_ckpt != last_ckpt and os.path.exists(new_ckpt):
-#             loaded_state = torch.load(new_ckpt, map_location=torch.device(device))
-#             network.load_state_dict(loaded_state['network'])
-#             training_steps = loaded_state['training_steps']
-#             network.eval()
-#             last_ckpt = new_ckpt
-#             logger.debug(f'Actor{rank} switched to checkpoint "{new_ckpt}"')
-#
-#         if env.has_resign_move:
-#             resign_threshold = var_resign_threshold.value
-#
-#         resign_disabled = True
-#         if env.has_resign_move and resign_threshold > -1.0 and np.random.rand() > disable_resign_ratio:
-#             resign_disabled = False
-#
-#         with timer:
-#             game_seq, stats = play_and_record_one_game(
-#                 env=env,
-#                 mcts_player=mcts_player,
-#                 resign_disabled=resign_disabled,
-#                 c_puct_base=c_puct_base,
-#                 c_puct_init=c_puct_init,
-#                 warm_up_steps=warm_up_steps,
-#                 check_resign_after_steps=check_resign_after_steps,
-#                 resign_threshold=resign_threshold,
-#                 logger=logger,
-#             )
-#             logger.debug("playing game.")
+    writer = CsvWriter(os.path.join(logs_dir, f'actor{rank}.csv'))
+    timer = Timer()
+
+    played_games = training_steps = 0
+    last_ckpt = None
+
+    should_save_sgf = False
+    if save_sgf_dir is not None and os.path.isdir(save_sgf_dir) and os.path.exists(save_sgf_dir):
+        should_save_sgf = True
+
+    disable_auto_grad(network)
+    network = network.to(device=device)
+
+    if load_ckpt is not None and os.path.exists(load_ckpt):
+        loaded_state = torch.load(load_ckpt, map_location=device)
+        network.load_state_dict(loaded_state['network'])
+        training_steps = loaded_state['training_steps']
+        logger.debug(f'Actor{rank} loaded state from checkpoint "{load_ckpt}"')
+
+    network.eval()
+
+    # resign_threshold <= -1 means no resign
+    resign_threshold = var_resign_threshold.value if env.has_resign_move else -1
+    mcts_player = create_mcts_player(
+        network=network,
+        device=device,
+        num_simulations=num_simulations,
+        num_parallel=num_parallel,
+        root_noise=True,
+        deterministic=False,
+    )
+
+    while not stop_event.is_set():
+        # Wait for learner to finish creating new checkpoint
+        logger.debug("event run selfplay actor....")
+        if ckpt_event.is_set():
+            continue
+
+        new_ckpt = _decode_bytes(var_ckpt.value)
+        if new_ckpt != '' and new_ckpt != last_ckpt and os.path.exists(new_ckpt):
+            loaded_state = torch.load(new_ckpt, map_location=torch.device(device))
+            network.load_state_dict(loaded_state['network'])
+            training_steps = loaded_state['training_steps']
+            network.eval()
+            last_ckpt = new_ckpt
+            logger.debug(f'Actor{rank} switched to checkpoint "{new_ckpt}"')
+
+        if env.has_resign_move:
+            resign_threshold = var_resign_threshold.value
+
+        resign_disabled = True
+        if env.has_resign_move and resign_threshold > -1.0 and np.random.rand() > disable_resign_ratio:
+            resign_disabled = False
+
+        with timer:
+            # raise Exception("hey")
+            game_seq, stats = play_and_record_one_game(
+                env=env,
+                mcts_player=mcts_player,
+                resign_disabled=resign_disabled,
+                c_puct_base=c_puct_base,
+                c_puct_init=c_puct_init,
+                warm_up_steps=warm_up_steps,
+                check_resign_after_steps=check_resign_after_steps,
+                resign_threshold=resign_threshold,
+                logger=logger,
+            )
+            logger.debug("played game ...........................")
+            # except Exception as e:
+            #     logger.debug(f"game failed {e}")
+                
 #
 #         played_games += 1
 # #
@@ -352,11 +356,18 @@ def play_and_record_one_game(
 
 
         obs, reward, done, _ = env.step(move)
-        if len(episode_values) >= env.board_size ** 2: 
-            break
+        logger.debug(f"{env.render()}")
+        logger.debug(f"{move}")
+        logger.debug(f"{env.to_play}")
+        logger.debug(f"{env.pass_move}")
+        logger.debug(f"{env.get_result_string()}")
+        # if env.steps >= env.board_size ** 2: 
+        #     logger.debug(f"!!!!!!!!!!!!!!!!!!end!!!!!!!!!!!!!!!!!!!!!!!!")
+        #     break
 
         if env.has_pass_move and move == env.pass_move:
             num_passes += 1
+            logger.debug(f"pass")
 
     # Do nothing if the game finished with draw
     if reward != 0.0:

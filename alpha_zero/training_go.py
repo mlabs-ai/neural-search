@@ -29,8 +29,8 @@ import torch
 from torch.optim.lr_scheduler import MultiStepLR
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('board_size', 3, 'Board size for Go.')
-flags.DEFINE_float('komi', 7.5, 'Komi rule for Go.')
+flags.DEFINE_integer('board_size', 5, 'Board size for Go.')
+flags.DEFINE_float('komi', 6.5, 'Komi rule for Go.')
 flags.DEFINE_integer(
     'num_stack',
     2,
@@ -249,7 +249,7 @@ def main():
         actor_devices = [torch.device(f'cuda:{i % num_gpus}') for i in range(FLAGS.num_actors)]
 
     def env_builder():
-        return GoEnv(komi=FLAGS.komi, num_stack=FLAGS.num_stack)
+        return GoEnv(komi=FLAGS.komi, num_stack=FLAGS.num_stack, max_steps=FLAGS.board_size * FLAGS.board_size * 2)
 
     eval_env = env_builder()
 
@@ -384,8 +384,6 @@ def main():
         # Wait for all actors to finish
         for actor in actors:
             actor.join()
-            # if actor.is_alive():
-                # print(f"Process {actor.name} is still running.")
             actor.close()
 
         # evaluator.join()
