@@ -6,6 +6,7 @@
 
 """Trains the AlphaZero agent on a single machine for the game of Go."""
 import os
+from time import sleep
 
 # This forces OpenMP to use 1 single thread, which is needed to
 # prevent contention between multiple process.
@@ -28,7 +29,7 @@ import torch
 from torch.optim.lr_scheduler import MultiStepLR
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('board_size', 4, 'Board size for Go.')
+flags.DEFINE_integer('board_size', 3, 'Board size for Go.')
 flags.DEFINE_float('komi', 7.5, 'Komi rule for Go.')
 flags.DEFINE_integer(
     'num_stack',
@@ -53,7 +54,7 @@ flags.DEFINE_integer(
 flags.DEFINE_integer('min_games', 100, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    100,
+    5,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
 flags.DEFINE_integer(
@@ -63,7 +64,7 @@ flags.DEFINE_integer(
 )
 flags.DEFINE_integer(
     'batch_size',
-    1024,
+    32,
     'To avoid overfitting, we want to make sure the agent only sees ~10% of samples in the replay over one checkpoint.'
     'That is, batch_size * ckpt_interval <= replay_capacity * 0.1',
 )
@@ -176,7 +177,7 @@ flags.DEFINE_string(
     './games/selfplay_games/go/4x4',
     'Path to selfplay and evaluation games in sgf format.',
 )
-flags.DEFINE_integer('save_sgf_interval', 500, 'How often to save self-play games.')
+flags.DEFINE_integer('save_sgf_interval', 5, 'How often to save self-play games.')
 
 flags.DEFINE_integer(
     'save_replay_interval',
@@ -188,7 +189,8 @@ flags.DEFINE_integer(
 flags.DEFINE_string('load_ckpt', '', 'Resume training by starting from last checkpoint.')
 flags.DEFINE_string('load_replay', '', 'Resume training by loading saved replay buffer state.')
 
-flags.DEFINE_string('log_level', 'INFO', '')
+# flags.DEFINE_string('log_level', 'INFO', '')
+flags.DEFINE_string('log_level', 'DEBUG', '')
 flags.DEFINE_integer('seed', 1, 'Seed the runtime.')
 
 flags.register_validator('num_simulations', lambda x: x > 1)
@@ -288,30 +290,29 @@ def main():
             compress_data=FLAGS.compress_data,
         )
 
-        # Start evaluator
-        evaluator = mp.Process(
-            target=run_evaluator_loop,
-            args=(
-                FLAGS.seed,
-                network_builder(),
-                eval_device,
-                eval_env,
-                FLAGS.eval_games_dir,
-                FLAGS.num_simulations,
-                FLAGS.num_parallel,
-                FLAGS.c_puct_base,
-                FLAGS.c_puct_init,
-                FLAGS.default_rating,
-                FLAGS.logs_dir,
-                FLAGS.save_sgf_dir,
-                FLAGS.load_ckpt,
-                FLAGS.log_level,
-                var_ckpt,
-                stop_event,
-            ),
-        )
-
-        evaluator.start()
+        # # Start evaluator
+        # evaluator = mp.Process(
+        #     target=run_evaluator_loop,
+        #     args=(
+        #         FLAGS.seed,
+        #         network_builder(),
+        #         eval_device,
+        #         eval_env,
+        #         FLAGS.eval_games_dir,
+        #         FLAGS.num_simulations,
+        #         FLAGS.num_parallel,
+        #         FLAGS.c_puct_base,
+        #         FLAGS.c_puct_init,
+        #         FLAGS.default_rating,
+        #         FLAGS.logs_dir,
+        #         FLAGS.save_sgf_dir,
+        #         FLAGS.load_ckpt,
+        #         FLAGS.log_level,
+        #         var_ckpt,
+        #         stop_event,),
+        # )
+        #
+        # evaluator.start()
 
         # Start self-play actors
         actors = []
@@ -347,45 +348,47 @@ def main():
             actors.append(actor)
 
         # Run learner loop on the main process
-        run_learner_loop(
-            seed=FLAGS.seed,
-            network=network,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-            device=learner_device,
-            replay=replay,
-            logger=logger,
-            argument_data=FLAGS.argument_data,
-            batch_size=FLAGS.batch_size,
-            init_resign_threshold=FLAGS.init_resign_threshold,
-            disable_resign_ratio=FLAGS.disable_resign_ratio,
-            target_fp_rate=FLAGS.target_fp_rate,
-            reset_fp_interval=FLAGS.reset_fp_interval,
-            no_resign_games=FLAGS.no_resign_games,
-            min_games=FLAGS.min_games,
-            games_per_ckpt=FLAGS.games_per_ckpt,
-            num_actors=FLAGS.num_actors,
-            ckpt_interval=FLAGS.ckpt_interval,
-            log_interval=FLAGS.log_interval,
-            save_replay_interval=FLAGS.save_replay_interval,
-            max_training_steps=FLAGS.max_training_steps,
-            ckpt_dir=FLAGS.ckpt_dir,
-            logs_dir=FLAGS.logs_dir,
-            load_ckpt=FLAGS.load_ckpt,
-            load_replay=FLAGS.load_replay,
-            data_queue=data_queue,
-            var_ckpt=var_ckpt,
-            var_resign_threshold=var_resign_threshold,
-            ckpt_event=ckpt_event,
-            stop_event=stop_event,
-        )
+        # run_learner_loop(
+        #     seed=FLAGS.seed,
+        #     network=network,
+        #     optimizer=optimizer,
+        #     lr_scheduler=lr_scheduler,
+        #     device=learner_device,
+        #     replay=replay,
+        #     logger=logger,
+        #     argument_data=FLAGS.argument_data,
+        #     batch_size=FLAGS.batch_size,
+        #     init_resign_threshold=FLAGS.init_resign_threshold,
+        #     disable_resign_ratio=FLAGS.disable_resign_ratio,
+        #     target_fp_rate=FLAGS.target_fp_rate,
+        #     reset_fp_interval=FLAGS.reset_fp_interval,
+        #     no_resign_games=FLAGS.no_resign_games,
+        #     min_games=FLAGS.min_games,
+        #     games_per_ckpt=FLAGS.games_per_ckpt,
+        #     num_actors=FLAGS.num_actors,
+        #     ckpt_interval=FLAGS.ckpt_interval,
+        #     log_interval=FLAGS.log_interval,
+        #     save_replay_interval=FLAGS.save_replay_interval,
+        #     max_training_steps=FLAGS.max_training_steps,
+        #     ckpt_dir=FLAGS.ckpt_dir,
+        #     logs_dir=FLAGS.logs_dir,
+        #     load_ckpt=FLAGS.load_ckpt,
+        #     load_replay=FLAGS.load_replay,
+        #     data_queue=data_queue,
+        #     var_ckpt=var_ckpt,
+        #     var_resign_threshold=var_resign_threshold,
+        #     ckpt_event=ckpt_event,
+        #     stop_event=stop_event,
+        # )
 
         # Wait for all actors to finish
         for actor in actors:
             actor.join()
-            actor.close()
+            if actor.is_alive():
+                print(f"Process {actor.name} is still running.")
+            # actor.close()
 
-        evaluator.join()
+        # evaluator.join()
 
 
 if __name__ == '__main__':

@@ -193,6 +193,7 @@ def run_selfplay_actor_loop(
 
     set_seed(int(seed + rank))
     logger = create_logger(log_level)
+    logger.info("start self play actor...")
     writer = CsvWriter(os.path.join(logs_dir, f'actor{rank}.csv'))
     timer = Timer()
 
@@ -227,6 +228,7 @@ def run_selfplay_actor_loop(
 
     while not stop_event.is_set():
         # Wait for learner to finish creating new checkpoint
+        logger.debug("event run selfplay actor....")
         if ckpt_event.is_set():
             continue
 
@@ -258,11 +260,13 @@ def run_selfplay_actor_loop(
                 resign_threshold=resign_threshold,
                 logger=logger,
             )
+            logger.debug("playing game.")
 
         played_games += 1
-
+#
         # The second check is necessary, as the events could be set while the actor is in the middle of playing a game.
         if stop_event.is_set():
+            logger.debug("stop_event is set")
             break
         if ckpt_event.is_set():
             continue
@@ -281,7 +285,12 @@ def run_selfplay_actor_loop(
                 f.write(sgf_content)
                 f.close()
 
+        logger.debug(f'write stats Actor{rank}.')
+        # logger.debug(f'{game_seq, stats}')
         data_queue.put((game_seq, stats))
+        # logger.debug(f'put queue {data_queue.qsize()}.')
+        logger.debug(f"{stop_event, ckpt_event, var_ckpt.value}")
+
 
     logger.debug(f'Actor{rank} received stop signal.')
     writer.close()
@@ -425,14 +434,14 @@ def run_learner_loop(  # noqa: C901
     lock=threading.Lock(),
 ) -> None:
     """Update the neural network, dynamically adjust resignation threshold if required."""
-    assert min_games >= 100
-    assert init_resign_threshold < -0.5
-    assert target_fp_rate <= 0.05
-    assert games_per_ckpt >= 100
-    assert ckpt_interval >= 100
-    assert log_interval >= 100
-    assert save_replay_interval >= 0
-    assert max_training_steps > 0
+    # assert min_games >= 100
+    # assert init_resign_threshold < -0.5
+    # assert target_fp_rate <= 0.05
+    # assert games_per_ckpt >= 100
+    # assert ckpt_interval >= 100
+    # assert log_interval >= 100
+    # assert save_replay_interval >= 0
+    # assert max_training_steps > 0
     assert ckpt_dir is not None and os.path.exists(ckpt_dir) and os.path.isdir(ckpt_dir)
 
     set_seed(int(seed))
@@ -487,6 +496,7 @@ def run_learner_loop(  # noqa: C901
     while True:
         try:
             item = data_queue.get()
+            logger.debug(f"qsize: {data_queue.qsize() } ")
             if not isinstance(item, Tuple):
                 continue
 
@@ -501,9 +511,11 @@ def run_learner_loop(  # noqa: C901
             replay.add_game(game_seq)
             game_time_que.append(stats['time_per_game'])
             game_length_que.append(stats['game_length'])
+            logger.debug(f"num_games_added: {replay.num_games_added, min_games}")
+
 
             # Logging
-            if replay.num_games_added % 10000 == 0:
+            if replay.num_games_added % 10 == 0:
                 avg_time_per_game = round_it(np.mean(game_time_que) / num_actors)
                 avg_game_length = np.mean(game_length_que)
                 logger.info(
@@ -622,12 +634,15 @@ def run_learner_loop(  # noqa: C901
                 break
 
         except (queue.Empty, EOFError) as error:  # noqa: F841
+            logger.debug(f"queue is empty")
             pass
 
+    logger.debug("exit while True")
+
     writer.close()
-    time.sleep(30)
+    time.sleep(3)
     stop_event.set()
-    time.sleep(60)
+    time.sleep(3)
 
     try:
         data_queue.close()
@@ -761,12 +776,14 @@ def run_evaluator_loop(
     )
 
     while not stop_event.is_set():
+        logger.debug("inside event loop ...")
         ckpt_file = _decode_bytes(var_ckpt.value)
         if ckpt_file == '' or ckpt_file == last_ckpt or not os.path.exists(ckpt_file):
             time.sleep(30)
             continue
 
         # Load states from checkpoint file
+        print("evaluating loop. load state from checkpoint")
         loaded_state = torch.load(ckpt_file, map_location=torch.device(device))
         training_steps = loaded_state['training_steps']
         network.load_state_dict(loaded_state['network'])

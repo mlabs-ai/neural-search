@@ -3,15 +3,22 @@ try monte-carlo tree search
 """
 import multiprocessing as mp
 from pdb import set_trace as bp
+
+from torch.optim.lr_scheduler import MultiStepLR
 from alpha_zero.core.network import AlphaZeroNet
+from alpha_zero.core.replay import UniformReplay
 from alpha_zero.envs.base import BoardGameEnv
 from torch import nn 
-from alpha_zero.core.pipeline import create_mcts_player, run_evaluator_loop, run_selfplay_actor_loop
+from alpha_zero.core.pipeline import create_mcts_player, run_evaluator_loop, run_selfplay_actor_loop, run_learner_loop
 import torch
+import torch.optim
 from absl import flags
 import sys
+import numpy as np
+
+from alpha_zero.utils.util import create_logger
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('board_size', 4, 'Board size for Go.')
+flags.DEFINE_integer('board_size', 9, 'Board size for Go.')
 flags.DEFINE_float('komi', 7.5, 'Komi rule for Go.')
 flags.DEFINE_integer(
     'num_stack',
@@ -211,8 +218,7 @@ if __name__ == '__main__':
     with mp.Manager() as manager:
         var_ckpt = manager.Value('s', b'')
         var_resign_threshold = manager.Value('d', FLAGS.init_resign_threshold)
-        # run_evaluator_loop(
-        #             FLAGS.seed,
+        # run_evaluator_loop( FLAGS.seed,
         #             network,
         #             None,
         #             env,
@@ -229,28 +235,74 @@ if __name__ == '__main__':
         #             None,
         #             stop_event,
         # )
-        run_selfplay_actor_loop(
-                        FLAGS.seed,
-                        0,
-                        network,
-                        None,
-                        data_queue,
-                        env,
-                        FLAGS.num_simulations,
-                        FLAGS.num_parallel,
-                        FLAGS.c_puct_base,
-                        FLAGS.c_puct_init,
-                        FLAGS.warm_up_steps,
-                        FLAGS.check_resign_after_steps,
-                        FLAGS.disable_resign_ratio,
-                        FLAGS.save_sgf_dir,
-                        FLAGS.save_sgf_interval,
-                        FLAGS.logs_dir,
-                        FLAGS.load_ckpt,
-                        FLAGS.log_level,
-                        var_ckpt,
-                        var_resign_threshold,
-                        ckpt_event,
-                        stop_event,
-                        )
+    # run_selfplay_actor_loop(
+    #                 FLAGS.seed,
+    #                 0,
+    #                 network,
+    #                 None,
+    #                 data_queue,
+    #                 env,
+    #                 FLAGS.num_simulations,
+    #                 FLAGS.num_parallel,
+    #                 FLAGS.c_puct_base,
+    #                 FLAGS.c_puct_init,
+    #                 FLAGS.warm_up_steps,
+    #                 FLAGS.check_resign_after_steps,
+    #                 FLAGS.disable_resign_ratio,
+    #                 FLAGS.save_sgf_dir,
+    #                 FLAGS.save_sgf_interval,
+    #                 FLAGS.logs_dir,
+    #                 FLAGS.load_ckpt,
+    #                 FLAGS.log_level,
+    #                 var_ckpt,
+    #                 var_resign_threshold,
+    #                 ckpt_event,
+    #                 stop_event,
+    #                 )
 
+        logger = create_logger(FLAGS.log_level)
+        optimizer = torch.optim.SGD(
+            network.parameters(),
+            lr=FLAGS.init_lr,
+            momentum=FLAGS.sgd_momentum,
+            weight_decay=FLAGS.l2_regularization,
+        )
+        lr_scheduler = MultiStepLR(optimizer, milestones=FLAGS.lr_milestones, gamma=FLAGS.lr_decay)
+        learner_device = eval_device = torch.device('cpu')
+        replay = UniformReplay(
+            capacity=FLAGS.replay_capacity,
+            random_state=np.random.RandomState(),
+            compress_data=FLAGS.compress_data,
+        )
+        run_learner_loop(
+            seed=FLAGS.seed,
+            network=network,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            device=learner_device,
+            replay=replay,
+            logger=logger,
+            argument_data=FLAGS.argument_data,
+            batch_size=FLAGS.batch_size,
+            init_resign_threshold=FLAGS.init_resign_threshold,
+            disable_resign_ratio=FLAGS.disable_resign_ratio,
+            target_fp_rate=FLAGS.target_fp_rate,
+            reset_fp_interval=FLAGS.reset_fp_interval,
+            no_resign_games=FLAGS.no_resign_games,
+            min_games=FLAGS.min_games,
+            games_per_ckpt=FLAGS.games_per_ckpt,
+            num_actors=FLAGS.num_actors,
+            ckpt_interval=FLAGS.ckpt_interval,
+            log_interval=FLAGS.log_interval,
+            save_replay_interval=FLAGS.save_replay_interval,
+            max_training_steps=FLAGS.max_training_steps,
+            ckpt_dir=FLAGS.ckpt_dir,
+            logs_dir=FLAGS.logs_dir,
+            load_ckpt=FLAGS.load_ckpt,
+            load_replay=FLAGS.load_replay,
+            data_queue=data_queue,
+            var_ckpt=var_ckpt,
+            var_resign_threshold=var_resign_threshold,
+            ckpt_event=ckpt_event,
+            stop_event=stop_event,
+        )
