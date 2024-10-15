@@ -384,9 +384,9 @@ def main():
         # Wait for all actors to finish
         for actor in actors:
             actor.join()
-            if actor.is_alive():
-                print(f"Process {actor.name} is still running.")
-            # actor.close()
+            # if actor.is_alive():
+                # print(f"Process {actor.name} is still running.")
+            actor.close()
 
         # evaluator.join()
 
