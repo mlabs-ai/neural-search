@@ -42,15 +42,15 @@ flags.DEFINE_integer(
 # flags.DEFINE_integer('num_fc_units', 64, 'Number of hidden units in the linear layer of the neural network.')
 
 # 11b128 version uses these configurations
-flags.DEFINE_integer('num_res_blocks', 1, 'Number of residual blocks in the neural network.')
-flags.DEFINE_integer('num_filters', 1, 'Number of filters for the conv2d layers in the neural network.')
+flags.DEFINE_integer('num_res_blocks', 5, 'Number of residual blocks in the neural network.')
+flags.DEFINE_integer('num_filters', 64, 'Number of filters for the conv2d layers in the neural network.')
 flags.DEFINE_integer(
     'num_fc_units',
-    1,
+    128,
     'Number of hidden units in the linear layer of the neural network.',
 )
 
-flags.DEFINE_integer('min_games', 100, 'Collect number of self-play games before learning starts.')
+flags.DEFINE_integer('min_games', 2000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
     500,
@@ -58,12 +58,12 @@ flags.DEFINE_integer(
 )
 flags.DEFINE_integer(
     'replay_capacity',
-    250 * 50,
+    2500 * 50,
     'Replay buffer capacity is number of game * average game length.' 'Note, 250000 games may need ~30GB of RAM',
 )
 flags.DEFINE_integer(
     'batch_size',
-    16,
+    512,
     'To avoid overfitting, we want to make sure the agent only sees ~10% of samples in the replay over one checkpoint.'
     'That is, batch_size * ckpt_interval <= replay_capacity * 0.1',
 )
