@@ -29,12 +29,12 @@ flags.DEFINE_integer(
 
 flags.DEFINE_string(
     'black_ckpt',
-    './checkpoints/go/5x5/training_steps_88000.ckpt',
+    './checkpoints/go/5x5/training_steps_107000.ckpt',
     'Load the checkpoint file for black player.',
 )
 flags.DEFINE_string(
     'white_ckpt',
-    './checkpoints/go/5x5/training_steps_88000.ckpt',
+    './checkpoints/go/5x5/training_steps_107000.ckpt',
     'Load the checkpoint file for white player.',
 )
 
