@@ -11,7 +11,7 @@ import sys
 import torch
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('board_size', 9, 'Board size for Go.')
+flags.DEFINE_integer('board_size', 5, 'Board size for Go.')
 flags.DEFINE_float('komi', 7.5, 'Komi rule for Go.')
 flags.DEFINE_integer(
     'num_stack',
@@ -19,8 +19,8 @@ flags.DEFINE_integer(
     'Stack N previous states, the state is an image of N x 2 + 1 binary planes.',
 )
 
-flags.DEFINE_integer('num_res_blocks', 10, 'Number of residual blocks in the neural network.')
-flags.DEFINE_integer('num_filters', 128, 'Number of filters for the conv2d layers in the neural network.')
+flags.DEFINE_integer('num_res_blocks', 5, 'Number of residual blocks in the neural network.')
+flags.DEFINE_integer('num_filters', 64, 'Number of filters for the conv2d layers in the neural network.')
 flags.DEFINE_integer(
     'num_fc_units',
     128,
@@ -29,19 +29,19 @@ flags.DEFINE_integer(
 
 flags.DEFINE_string(
     'black_ckpt',
-    './checkpoints/go/9x9/training_steps_154000.ckpt',
+    './checkpoints/go/5x5/training_steps_88000.ckpt',
     'Load the checkpoint file for black player.',
 )
 flags.DEFINE_string(
     'white_ckpt',
-    './checkpoints/go/9x9/training_steps_154000.ckpt',
+    './checkpoints/go/5x5/training_steps_88000.ckpt',
     'Load the checkpoint file for white player.',
 )
 
-flags.DEFINE_integer('num_simulations', 400, 'Number of iterations per MCTS search.')
+flags.DEFINE_integer('num_simulations', 200, 'Number of iterations per MCTS search.')
 flags.DEFINE_integer(
     'num_parallel',
-    8,
+    1,
     'Number of leaves to collect before using the neural network to evaluate the positions during MCTS search, 1 means no parallel search.',
 )
 
