@@ -90,7 +90,7 @@ flags.DEFINE_integer(
     int(5e5),
     'Number of training steps (measured in network parameter update, one batch is one training step).',
 )
-flags.DEFINE_integer('num_actors', 1, 'Number of self-play actor processes.')
+flags.DEFINE_integer('num_actors', 20, 'Number of self-play actor processes.')
 flags.DEFINE_integer(
     'num_simulations',
     200,
@@ -160,7 +160,7 @@ flags.DEFINE_float(
 )
 flags.DEFINE_integer('ckpt_interval', 1000, 'The frequency (in training step) to create new checkpoint.')
 flags.DEFINE_integer('log_interval', 200, 'The frequency (in training step) to log training statistics.')
-flags.DEFINE_string('ckpt_dir', './checkpoints/go/9x9', 'Path for checkpoint file.')
+flags.DEFINE_string('ckpt_dir', './checkpoints/go/5x5', 'Path for checkpoint file.')
 flags.DEFINE_string(
     'logs_dir',
     './logs/go/5x5',
