@@ -9,7 +9,7 @@ class ExpandLinear(nn.Module):
         self.factor = factor
 
         self.linear = nn.Linear(dim, dim * factor)
-    
+
     def forward(self, x: torch.Tensor):
         h = self.linear(x)
 
@@ -19,6 +19,14 @@ class Residual(nn.Module):
     def __init__(self, module: nn.Module):
         super(Residual, self).__init__()
         self.module = module
-    
+
     def forward(self, x):
         return x + self.module(x)
+
+class Unpack(nn.Module):
+    def __init__(self, size):
+        super(Unpack, self).__init__()
+        self.size = size
+
+    def forward(self, x):
+        return x.reshape(*x.shape[:-1], x.shape[-1]//self.size, self.size)
