@@ -68,24 +68,13 @@ class SamplingOneToManyNetwork(nn.Module):
 
         return self.decoder(h_samples)
 
-class DeterministicFitnessAttention(nn.Module):
-    def __init__(self, dim, beam_width):
-        super(DeterministicFitnessAttention, self).__init__()
-        self.heads = nn.Parameter(torch.randn(dim, beam_width))
-
-    def forward(self, x: torch.Tensor, k=None):
-        scores = x @ self.heads
-
-        return scores.movedim(-1, 0)[..., None]
-
-class SamplingFitnessAttention(nn.Module):
-    def __init__(self, dim, sampler: Sampler):
-        super(DeterministicFitnessAttention, self).__init__()
-        self.dist = nn.Parameter(torch.rand(2 * dim))
-        self.sampler: Sampler = sampler
+class FitnessAttention(nn.Module):
+    def __init__(self, one_to_many : nn.Module):
+        super(FitnessAttention, self).__init__()
+        self.one_to_many = one_to_many
 
     def forward(self, x: torch.Tensor, k: int):
-        heads = self.sampler(x, k)
+        heads = self.one_to_many(x, k)
         scores = x @ heads
 
         return scores.movedim(-1, 0)[..., None]
