@@ -85,7 +85,7 @@ class FitnessFunction(nn.Module):
     def forward(self, x: torch.Tensor, k: int):
         heads = self.one_to_many(x, k)
 
-        return heads.movedim(-1, 0)[..., None]
+        return heads.movedim(-1, 0)
 
 class TransitionFunction(nn.Module):
     def __init__(self, one_to_many: Union[SamplingOneToManyNetwork, OneToManyNetwork]):
@@ -95,4 +95,4 @@ class TransitionFunction(nn.Module):
     def forward(self, x: torch.Tensor, k: int):
         heads = self.one_to_many(x, k)
 
-        return heads.movedim(-1, 0)[..., None]
+        return heads.movedim(-1, 0)
