@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 import torch.nn as nn
 
@@ -68,13 +69,30 @@ class SamplingOneToManyNetwork(nn.Module):
 
         return self.decoder(h_samples)
 
-class FitnessAttention(nn.Module):
-    def __init__(self, one_to_many : nn.Module):
-        super(FitnessAttention, self).__init__()
+class OneToManyNetwork(nn.Module):
+    def __init__(self, network: nn.Module):
+        super(OneToManyNetwork, self).__init__()
+        self.network = network
+
+    def forward(self, x: torch.Tensor, k: int = None):
+        return self.network(x)
+
+class FitnessFunction(nn.Module):
+    def __init__(self, one_to_many: Union[SamplingOneToManyNetwork, OneToManyNetwork]):
+        super(FitnessFunction, self).__init__()
         self.one_to_many = one_to_many
 
     def forward(self, x: torch.Tensor, k: int):
         heads = self.one_to_many(x, k)
-        scores = x @ heads
 
-        return scores.movedim(-1, 0)[..., None]
+        return heads.movedim(-1, 0)[..., None]
+
+class TransitionFunction(nn.Module):
+    def __init__(self, one_to_many: Union[SamplingOneToManyNetwork, OneToManyNetwork]):
+        super(TransitionFunction, self).__init__()
+        self.one_to_many = one_to_many
+
+    def forward(self, x: torch.Tensor, k: int):
+        heads = self.one_to_many(x, k)
+
+        return heads.movedim(-1, 0)[..., None]
