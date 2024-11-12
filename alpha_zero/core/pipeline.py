@@ -6,6 +6,7 @@
 
 """Implements the core functions of training the AlphaZero agent."""
 import os
+import shutil
 from typing import Any, Text, Callable, Mapping, Iterable, Tuple
 import time
 from pathlib import Path
@@ -18,7 +19,7 @@ import random
 
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -643,16 +644,22 @@ def supervised_learner_loop(
     ckpt_interval: int,
     log_interval: int,
     max_training_steps: int,
+    patience: int,
     ckpt_dir: str,
     logs_dir: str,
    ) -> None:
     """Update the neural network, dynamically adjust resignation threshold if required."""
 
-    assert ckpt_interval >= 100
-    assert log_interval >= 100
 
-    assert max_training_steps > 0
-    assert ckpt_dir is not None and os.path.exists(ckpt_dir) and os.path.isdir(ckpt_dir)
+
+    if os.path.exists(ckpt_dir):
+        shutil.rmtree(ckpt_dir)
+
+    os.makedirs(ckpt_dir)
+
+    if os.path.exists(logs_dir):
+        shutil.rmtree(logs_dir)
+    os.makedirs(logs_dir)
 
     set_seed(int(seed))
     writer = CsvWriter(os.path.join(logs_dir, 'supervised_training.csv'), buffer_size=1)
@@ -660,17 +667,29 @@ def supervised_learner_loop(
     network = network.to(device=device)  # the neural net
     ##getting the data
     go_dataset = torch.load(data_dir)
-    dataloader = DataLoader(
-            go_dataset,
+    train_size = int(0.8*len(go_dataset))
+    val_size = len(go_dataset)-train_size
+    train_dataset, val_dataset = random_split(go_dataset, [train_size, val_size])
+    train_loader = DataLoader(
+            train_dataset,
             batch_size=batch_size,
             pin_memory=True,
             shuffle=True,
             drop_last=True,
         )
 
+    val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            pin_memory=True,
+            )
+
+    best_val_loss = 0
+    steps_no_improve = 0
+
     network.train()
     while training_steps < max_training_steps:
-        for transition in dataloader:
+        for transition in train_loader:
 
             optimizer.zero_grad()
             pi_loss, v_loss = compute_supervised_losses(network, device, transition, argument_data)
@@ -692,22 +711,40 @@ def supervised_learner_loop(
                 writer.write(OrderedDict((n, v) for n, v in stats.items()))
                 logger.info(f"Training Step {training_steps}: Policy loss = {pi_loss.detach().item()}, value loss = {v_loss.detach().item()}")
 
-            if training_steps % ckpt_interval ==0:
-                # Create checkpoint
-                ckpt_file = os.path.join(ckpt_dir, f'training_steps_{training_steps}.ckpt')
-                torch.save(
-                    {
-                        'network': network.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'lr_scheduler': lr_scheduler.state_dict(),
-                        'training_steps': training_steps,
-                    },
-                    ckpt_file)
+            if training_steps % ckpt_interval == 0:
+                    # Create checkpoint
+                    ckpt_file = os.path.join(ckpt_dir, f'training_steps_{training_steps}.ckpt')
+                    torch.save(
+                        {
+                            'network': network.state_dict(),
+                            'optimizer': optimizer.state_dict(),
+                            'lr_scheduler': lr_scheduler.state_dict(),
+                            'training_steps': training_steps,
+                        },
+                        ckpt_file)
 
 
-                logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
+                    logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
 
-            if training_steps>max_training_steps:
+        val_loss = compute_validation_loss(network, device, val_loader)
+        logger.info(f"training_steps {training_steps}: Validation loss = {val_loss}")
+
+         # Early stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            steps_no_improve = 0
+            # Optionally save the best model
+            best_model_path = os.path.join(ckpt_dir, 'best_model.ckpt')
+            torch.save(network.state_dict(), best_model_path)
+            logger.info(f'Best model saved at "{best_model_path}" with validation loss {val_loss}')
+        else:
+            steps_no_improve += 1
+
+        if steps_no_improve >= patience:
+            logger.info(f"Early stopping triggered after {steps_no_improve} epochs without improvement.")
+            break
+
+        if training_steps>max_training_steps:
                 break
 
 
@@ -732,6 +769,15 @@ def compute_supervised_losses(network, device, transitions, argument_data):
 
     return policy_loss, value_loss
 
+def compute_validation_loss(network, device, val_loader):
+    network.eval()
+    val_loss = 0.0
+    with torch.no_grad():
+        for transition in val_loader:
+            pi_loss, v_loss = compute_supervised_losses(network, device, transition, argument_data=False)
+            val_loss += pi_loss.item() + v_loss.item()
+    val_loss /= len(val_loader)
+    return val_loss
 
 
 def compute_losses(network, device, transitions, argumentation=False) -> Tuple[torch.Tensor, torch.Tensor]:

@@ -106,7 +106,14 @@ class ResNetBlock(nn.Module):
         out = F.relu(out)
         return out
 
+class UnpackedResidual(nn.Module):
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
 
+    def forward(self, x):
+        h = self.module(x)
+        return h + x[..., None]
 
 class QuantumAlphaZeroNet(nn.Module):
     """Policy network for AlphaZero agent."""
@@ -148,14 +155,15 @@ class QuantumAlphaZeroNet(nn.Module):
 
         # Residual Quantum search block
         self.search = QuantumSearch(
-            transition = TransitionFunction(
+            transition = UnpackedResidual(
+                TransitionFunction(
                 OneToManyNetwork(
                     nn.Sequential(
                         ResNetBlock(num_input_filters=num_filters, num_output_filters = branching_width* num_filters),
                         UnpackGrid(branching_width) # Batch, ...,  3 * H -> Batch, ..., H, 3
                     )
                 ),
-            ),
+            )),
             fitness=FitnessFunction(
                 OneToManyNetwork(
                     nn.Sequential(
