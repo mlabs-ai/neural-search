@@ -45,7 +45,10 @@ class QuantumSearch(nn.Module):
         candidates_fitness = self.fitness(candidates, self.beam_width)
 
         # next_candidates: beam_width, n_batch, ..., n_dim
-        next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1)
+        next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1) + beam
+          # next_candidates: beam_width, n_batch, ..., n_dim
+        # next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1) + beam
+
 
         return next_beam
 
