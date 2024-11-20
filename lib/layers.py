@@ -39,7 +39,7 @@ class UnpackGrid(nn.Module):
 
     def forward(self,x):
 
-        return x.reshape(*x.shape[:-3], x.shape[-3]//3, 3,*x.shape[-2:]).movedim(-3,-1)
+        return x.reshape(*x.shape[:-3], x.shape[-3]//self.size, self.size, *x.shape[-2:]).movedim(-3,-1)
 
 
 
