@@ -726,8 +726,9 @@ def supervised_learner_loop(
 
                     logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
 
-        val_loss = compute_validation_loss(network, device, val_loader)
-        logger.info(f"training_steps {training_steps}: Validation loss = {val_loss}")
+        pi_loss, v_loss = compute_validation_loss(network, device, val_loader)
+        logger.info(f"training_steps {training_steps}: Validation loss: Poliy loss {pi_loss}, value_loss {v_loss}")
+        val_loss = pi_loss + v_loss
 
          # Early stopping check
         if val_loss < best_val_loss:
@@ -771,13 +772,22 @@ def compute_supervised_losses(network, device, transitions, argument_data):
 
 def compute_validation_loss(network, device, val_loader):
     network.eval()
-    val_loss = 0.0
+    # val_loss = 0.0
+    total_pi_loss = 0.0
+    total_v_loss = 0.0
     with torch.no_grad():
         for transition in val_loader:
             pi_loss, v_loss = compute_supervised_losses(network, device, transition, argument_data=False)
-            val_loss += pi_loss.item() + v_loss.item()
-    val_loss /= len(val_loader)
-    return val_loss
+            # pi_loss, v_loss = pi_loss.item(), v_loss.item()
+            # val_loss += pi_loss.item() + v_loss.item()
+            total_pi_loss += pi_loss.item()  # Accumulate policy loss
+            total_v_loss += v_loss.item()   # Accumulate value loss
+
+
+    # val_loss /= len(val_loader)
+    avg_pi_loss = total_pi_loss / len(val_loader)
+    avg_v_loss = total_v_loss / len(val_loader)
+    return avg_pi_loss, avg_v_loss
 
 
 def compute_losses(network, device, transitions, argumentation=False) -> Tuple[torch.Tensor, torch.Tensor]:
