@@ -162,6 +162,7 @@ def create_mcts_player(
     return act
 
 
+
 @torch.no_grad()
 def run_evaluator_loop(
     seed: int,
@@ -171,6 +172,7 @@ def run_evaluator_loop(
     env: BoardGameEnv,
     num_simulations: int,
     num_parallel: int,
+    num_games: int,
     c_puct_base: float,
     c_puct_init: float,
     default_rating: float,
@@ -180,7 +182,7 @@ def run_evaluator_loop(
     log_level: str,
 ) -> None:
     """
-    Evaluate a single game between ResNet (Black) and QuantumNet (White).
+    Evaluate multiple games between ResNet and QuantumNet, alternating roles.
     """
     set_seed(seed)
     logger = create_logger(log_level)
@@ -191,12 +193,12 @@ def run_evaluator_loop(
     disable_auto_grad(resnet_network)
     disable_auto_grad(quantum_net)
 
-    if load_ckpt_1 is not None and os.path.exists(load_ckpt_1):
+    if load_ckpt_1 and os.path.exists(load_ckpt_1):
         loaded_state_1 = torch.load(load_ckpt_1, map_location=device)
         resnet_network.load_state_dict(loaded_state_1['network'])
         logger.info(f"ResNet model loaded from checkpoint: {load_ckpt_1}")
 
-    if load_ckpt_2 is not None and os.path.exists(load_ckpt_2):
+    if load_ckpt_2 and os.path.exists(load_ckpt_2):
         loaded_state_2 = torch.load(load_ckpt_2, map_location=device)
         quantum_net.load_state_dict(loaded_state_2['network'])
         logger.info(f"QuantumNet model loaded from checkpoint: {load_ckpt_2}")
@@ -207,42 +209,92 @@ def run_evaluator_loop(
     # Elo ratings
     resnet_elo = EloRating(rating=default_rating)
     quantum_elo = EloRating(rating=default_rating)
+    resnet_player = create_mcts_player(
+                network=resnet_network,
+                device=device,
+                num_simulations=num_simulations,
+                num_parallel=num_parallel,
+                root_noise=False,
+                deterministic=True,
+            )
+    quantum_player = create_mcts_player(
+                network=quantum_net,
+                device=device,
+                num_simulations=num_simulations,
+                num_parallel=num_parallel,
+                root_noise=False,
+                deterministic=True,
+            )
 
-    # Create MCTS players
-    white_player = create_mcts_player(
-        network=resnet_network,
-        device=device,
-        num_simulations=num_simulations,
-        num_parallel=num_parallel,
-        root_noise=False,
-        deterministic=False,
-    )
-    black_player = create_mcts_player(
-        network=quantum_net,
-        device=device,
-        num_simulations=num_simulations,
-        num_parallel=num_parallel,
-        root_noise=False,
-        deterministic=False,
-    )
+    # Results tracking
+    resnet_wins, quantum_net_wins, draws = 0, 0, 0
 
-    # Play one game
-    logger.info("Playing one game: ResNet (White) vs QuantumNet (Black)")
-    game_stats = play_one_game(
-        env,
-        black_player,
-        white_player,
-        resnet_elo,
-        quantum_elo,
-        c_puct_base,
-        c_puct_init,
-        logger,
-    )
+    for game_idx in range(num_games):
+    # Alternate Black and White roles
+        r = random.choice([0,1])
+        if r == 0:
+            black_player = resnet_player
+            white_player = quantum_player
+            black_is_resnet = True
+        else:
+            black_player = create_mcts_player(
+                network=quantum_net,
+                device=device,
+                num_simulations=num_simulations,
+                num_parallel=num_parallel,
+                root_noise=False,
+                deterministic=True,
+            )
+            white_player = create_mcts_player(
+                network=resnet_network,
+                device=device,
+                num_simulations=num_simulations,
+                num_parallel=num_parallel,
+                root_noise=False,
+                deterministic=True,
+            )
+            black_is_resnet = False
 
-    # Final logging
-    logger.info(f"Game result: {game_stats['game_result']}")
-    logger.info(f"ResNet Elo: {resnet_elo.rating}, QuantumNet Elo: {quantum_elo.rating}")
-    logger.info(f"Game length: {game_stats['game_length']} moves")
+        logger.info(f"Playing game {game_idx + 1}/{num_games}")
+
+        # Play the game
+        game_stats = play_one_game(
+            env,
+            black_player,
+            white_player,
+            resnet_elo,
+            quantum_elo,
+            c_puct_base,
+            c_puct_init,
+            logger,
+        )
+
+        # Process results
+        if game_stats["game_result"] == "Black wins":
+            if black_is_resnet:
+                resnet_wins += 1
+            else:
+                quantum_net_wins += 1
+        elif game_stats["game_result"] == "White wins":
+            if not black_is_resnet:
+                resnet_wins += 1
+            else:
+                quantum_net_wins += 1
+        else:
+            draws += 1
+
+        logger.info(
+            f"Game {game_idx + 1} result: {game_stats['game_result']} - "
+            f"ResNet Elo: {resnet_elo.rating}, QuantumNet Elo: {quantum_elo.rating}"
+        )
+
+    # Final results
+    logger.info(f"Final Results after {num_games} games:")
+    logger.info(f"ResNet Wins: {resnet_wins}, QuantumNet Wins: {quantum_net_wins}, Draws: {draws}")
+    logger.info(f"Final Elo Ratings - ResNet: {resnet_elo.rating}, QuantumNet: {quantum_elo.rating}")
+
+    # Visualize Elo ratings
+    visualize_elo_ratings(resnet_elo.rating, quantum_elo.rating, logs_dir)
 
 
 @torch.no_grad()
@@ -255,9 +307,10 @@ def play_one_game(
     c_puct_base,
     c_puct_init,
     logger,
+    black_is_resnet: bool,
 ) -> Mapping[str, Any]:
     """
-    Simulate a single game between ResNet (Black) and QuantumNet (White).
+    Simulate a single game between two players.
     """
     env.reset()
     done = False
@@ -275,19 +328,25 @@ def play_one_game(
             c_puct_init=c_puct_init,
             warm_up=False,
         )
-        logger.debug(f"Player {env.to_play} chose move: {move}")
-        logger.debug(f"State before move: {env.render()}")
+        # logger.debug(f"Player {env.to_play} chose move: {move}")
+        # logger.debug(f"State before move: {env.render()}")
 
         _, _, done, _ = env.step(move)
-        logger.debug(f"State after move: {env.render()}")
+        # logger.debug(f"State after move: {env.render()}")
 
-    # Determine winner
+     # Determine winner
     if env.winner == env.black_player:
         game_result = "Black wins"
-        winner, loser = resnet_elo, quantum_elo
+        if black_is_resnet:
+            winner, loser = resnet_elo, quantum_elo
+        else:
+            winner, loser = quantum_elo, resnet_elo
     elif env.winner == env.white_player:
         game_result = "White wins"
-        winner, loser = quantum_elo, resnet_elo
+        if not black_is_resnet:
+            winner, loser = resnet_elo, quantum_elo
+        else:
+            winner, loser = quantum_elo, resnet_elo
     else:
         game_result = "Draw"
         winner, loser = None, None
@@ -307,13 +366,17 @@ def play_one_game(
     return stats
 
 
+def visualize_elo_ratings(resnet_elo: float, quantum_elo: float, logs_dir: str) -> None:
+    """
+    Create a bar chart of Elo ratings.
+    """
+    models = ["ResNet", "QuantumNet"]
+    ratings = [resnet_elo, quantum_elo]
 
-
-
-# class EloRating:
-#     def __init__(self, rating):
-#         self.rating = rating
-
-#     def update_rating(self, opponent_rating, score, k=32):
-#         expected = 1 / (1 + 10 ** ((opponent_rating - self.rating) / 400))
-#         self.rating += k * (score - expected)
+    plt.figure(figsize=(8, 6))
+    plt.bar(models, ratings, color=["blue", "green"])
+    plt.xlabel("Models")
+    plt.ylabel("Elo Rating")
+    plt.title("Elo Ratings Comparison")
+    plt.savefig(os.path.join(logs_dir, "elo_ratings_comparison.png"))
+    plt.show()

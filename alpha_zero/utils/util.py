@@ -54,20 +54,40 @@ def extract_args_from_flags_dict(flags_dict: Mapping[Text, Any]) -> Mapping[Text
     return args
 
 
+# def create_logger(level='INFO'):
+#     handler = logging.StreamHandler(stream=sys.stderr)
+#     formatter = logging.Formatter(
+#         fmt='%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s',
+#         datefmt='%Y-%m-%d %H:%M:%S',
+#     )
+#     handler.setFormatter(formatter)
+#     logger = logging.getLogger()
+#     veb = logging.INFO
+#     level = str(level).upper()
+#     if level == 'DEBUG':
+#         veb = logging.DEBUG
+#     logger.setLevel(veb)
+#     logger.addHandler(handler)
+
+#     return logger
+
 def create_logger(level='INFO'):
-    handler = logging.StreamHandler(stream=sys.stderr)
-    formatter = logging.Formatter(
-        fmt='%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
-    handler.setFormatter(formatter)
     logger = logging.getLogger()
+    if not logger.hasHandlers():  # Prevent adding duplicate handlers
+        handler = logging.StreamHandler(stream=sys.stderr)
+        formatter = logging.Formatter(
+            fmt='%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    # Set the logging level
     veb = logging.INFO
     level = str(level).upper()
     if level == 'DEBUG':
         veb = logging.DEBUG
     logger.setLevel(veb)
-    logger.addHandler(handler)
 
     return logger
 

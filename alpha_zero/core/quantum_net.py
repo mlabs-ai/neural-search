@@ -42,10 +42,7 @@ def initialize_weights(net: nn.Module) -> None:
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
 
-
-class ResNetBlock(nn.Module):
-    """Basic redisual block."""
-
+class FitnessResNetBlock(nn.Module):
     def __init__(
         self,
         num_input_filters: int,
@@ -67,7 +64,9 @@ class ResNetBlock(nn.Module):
                 padding = 1,
                 bias = False,
             ),
-            # nn.BatchNorm2d(num_features=num_filters),
+            # nn.BatchNorm2d(num_features=num_input_filters),
+            nn.LayerNorm([num_input_filters, self.input_size[0], self.input_size[1]]),
+            nn.ReLU()
 
            )
 
@@ -81,7 +80,8 @@ class ResNetBlock(nn.Module):
                 padding = 1,
                 bias = False,
             ),
-            # nn.BatchNorm2d(num_features=num_filters),
+            # nn.BatchNorm2d(num_features=num_input_filters),
+            nn.LayerNorm([num_output_filters, self.input_size[0], self.input_size[1]])
         )
         if self.residual:
             self.conv_block3 = MultiBatchConv2d(
@@ -91,27 +91,75 @@ class ResNetBlock(nn.Module):
                     stride = 1,
                     bias = False,
                 )
-        self.layer_norm1 =  nn.LayerNorm([num_input_filters, self.input_size[0], self.input_size[1]])
-        self.layer_norm2 = nn.LayerNorm([num_output_filters, self.input_size[0], self.input_size[1]])
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
         out = self.conv_block1(x)
-        _,_,C,H,W = out.shape
-        # if self.layer_norm1 is None:
-        #     self.layer_norm1 = nn.LayerNorm([C, H, W]).to(out.device)
-        out = self.layer_norm1(out)
-        out = F.relu(out)
-        out = self.conv_block2(out)
-        # _,_,C,H,W = out.shape
-        # if self.layer_norm2 is None:
-        #     self.layer_norm2 = nn.LayerNorm([C, H, W]).to(out.device)
 
-        out = self.layer_norm2(out)
+        out = self.conv_block2(out)
+
         if self.residual:
             residual = self.conv_block3(x)
-            out += residual
+            out+=residual
         out = F.relu(out)
+        return out
+
+class TransitionResNetBlock(nn.Module):
+    """Basic redisual block."""
+
+    def __init__(
+        self,
+        num_input_filters: int,
+        output_filter_factor: int,
+        input_size: int
+    ) -> None:
+        super().__init__()
+
+        self.input_size = input_size
+        self.num_input_filters =  num_input_filters
+        self.output_filter_factor = output_filter_factor
+
+        self.conv_block1 = nn.Sequential(
+            MultiBatchConv2d(
+                in_channels = num_input_filters,
+                out_channels = num_input_filters,
+                kernel_size = 3,
+                stride = 1,
+                padding = 1,
+                bias = False,
+            ),
+            nn.LayerNorm([num_input_filters, self.input_size[0], self.input_size[1]]),
+            nn.ReLU()
+           )
+
+        self.conv_block2 = nn.Sequential(
+            MultiBatchConv2d(
+                in_channels = num_input_filters,
+                out_channels = num_input_filters * output_filter_factor,
+                kernel_size = 3,
+                stride = 1,
+                padding = 1,
+                bias = False,
+            ),
+            nn.LayerNorm([num_input_filters * output_filter_factor, self.input_size[0], self.input_size[1]])
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        out = self.conv_block1(x)
+
+        out = self.conv_block2(out)
+
+        out_split = out.reshape(*out.shape[:-3], self.num_input_filters, self.output_filter_factor, out.shape[-2], out.shape[-1])
+        in_split = x.reshape(*x.shape[:-3], self.num_input_filters, 1, x.shape[-2], x.shape[-1])
+
+        out_residual = out_split + in_split
+
+        out = out_residual.reshape(*out.shape[:-3], self.num_input_filters * self.output_filter_factor, out.shape[-2], out.shape[-1])
+
+        out = F.relu(out)
+
         return out
 
 class UnpackedResidual(nn.Module):
@@ -167,7 +215,7 @@ class QuantumAlphaZeroNet(nn.Module):
             transition =  TransitionFunction(
                 OneToManyNetwork(
                      UnpackedResidual(nn.Sequential(
-                        ResNetBlock(num_input_filters=num_filters, num_output_filters = branching_width* num_filters, input_size = conv_out_hw, residual = False),
+                        TransitionResNetBlock(num_input_filters=num_filters, output_filter_factor=branching_width, input_size = conv_out_hw),
                         UnpackGrid(branching_width) # Batch, ...,  3 * H -> Batch, ..., H, 3
                     ))
                 ),
@@ -175,8 +223,7 @@ class QuantumAlphaZeroNet(nn.Module):
             fitness=FitnessFunction(
                 OneToManyNetwork(
                     nn.Sequential(
-
-                        ResNetBlock(num_input_filters=num_filters, num_output_filters = beam_width, input_size = conv_out_hw),
+                        FitnessResNetBlock(num_input_filters=num_filters, num_output_filters = beam_width, input_size = conv_out_hw, residual=False),
                         UnpackGrid(beam_width) # Batch, ...,  3 * H -> Batch, ..., 1, 3
                     )
                 ),
