@@ -79,8 +79,19 @@ def _encode_bytes(in_str) -> Any:
     return str(in_str).encode('utf-8')
 
 
-def _decode_bytes(b) -> str:
-    return b.decode('utf-8')
+
+def strip_prefix(state_dict, prefix="_orig_mod."):
+    """
+    Strip a given prefix from the keys in the state_dict.
+    """
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k.startswith(prefix):
+            new_key = k[len(prefix):]  # Remove the prefix
+        else:
+            new_key = k
+        new_state_dict[new_key] = v
+    return new_state_dict
 
 
 def create_mcts_player(
@@ -163,10 +174,12 @@ def create_mcts_player(
 
 
 @torch.no_grad()
-def run_evaluator_loop(
+def run_game_series(
     seed: int,
     network_1: torch.nn.Module,
     network_2: torch.nn.Module,
+    name_1 : str,
+    name_2 : str,
     device: torch.device,
     env: BoardGameEnv,
     num_simulations: int,
@@ -186,39 +199,50 @@ def run_evaluator_loop(
     logger = create_logger(log_level)
 
     # Load networks
-    resnet_network = network_1.to(device=device)
-    quantum_net = network_2.to(device=device)
-    disable_auto_grad(resnet_network)
-    disable_auto_grad(quantum_net)
+    network_1 = network_1.to(device=device)
+    network_2 = network_2.to(device=device)
+    disable_auto_grad(network_1)
+    disable_auto_grad(network_2)
 
-    if load_ckpt_1 is not None and os.path.exists(load_ckpt_1):
-        loaded_state_1 = torch.load(load_ckpt_1, map_location=device)
-        resnet_network.load_state_dict(loaded_state_1['network'])
-        logger.info(f"ResNet model loaded from checkpoint: {load_ckpt_1}")
+       # Validate checkpoints
+    if not (load_ckpt_1 and os.path.exists(load_ckpt_1)):
+        raise ValueError(f"ResNet checkpoint path is invalid: {load_ckpt_1}")
+    if not (load_ckpt_2 and os.path.exists(load_ckpt_2)):
+        raise ValueError(f"QuantumNet checkpoint path is invalid: {load_ckpt_2}")
 
-    if load_ckpt_2 is not None and os.path.exists(load_ckpt_2):
-        loaded_state_2 = torch.load(load_ckpt_2, map_location=device)
-        quantum_net.load_state_dict(loaded_state_2['network'])
-        logger.info(f"QuantumNet model loaded from checkpoint: {load_ckpt_2}")
 
-    resnet_network.eval()
-    quantum_net.eval()
+
+    loaded_state_1 = torch.load(load_ckpt_1, map_location=device)
+    # Strip `_orig_mod.` prefix
+    cleaned_state_dict_1 = strip_prefix(loaded_state_1['network'])
+    network_1.load_state_dict(cleaned_state_dict_1)
+    logger.info(f"{name_1} model loaded from checkpoint: {load_ckpt_1}")
+
+
+    loaded_state_2 = torch.load(load_ckpt_2, map_location=device)
+    cleaned_state_dict_2 = strip_prefix(loaded_state_2['network'])
+    network_2.load_state_dict(cleaned_state_dict_2)
+    logger.info(f"{name_2} model loaded from checkpoint: {load_ckpt_2}")
+
+    network_1.eval()
+    network_2.eval()
 
     # Elo ratings
-    resnet_elo = EloRating(rating=default_rating)
-    quantum_elo = EloRating(rating=default_rating)
+    black_elo = EloRating(rating=default_rating)
+    white_elo = EloRating(rating=default_rating)
 
     # Create MCTS players
-    white_player = create_mcts_player(
-        network=resnet_network,
+
+    black_player = create_mcts_player(
+        network=network_1,
         device=device,
         num_simulations=num_simulations,
         num_parallel=num_parallel,
         root_noise=False,
         deterministic=False,
     )
-    black_player = create_mcts_player(
-        network=quantum_net,
+    white_player = create_mcts_player(
+        network=network_2,
         device=device,
         num_simulations=num_simulations,
         num_parallel=num_parallel,
@@ -227,13 +251,15 @@ def run_evaluator_loop(
     )
 
     # Play one game
-    logger.info("Playing one game: ResNet (White) vs QuantumNet (Black)")
+    logger.info(f"Playing one game: {name_1} (Black) vs {name_2} (white)")
     game_stats = play_one_game(
         env,
         black_player,
         white_player,
-        resnet_elo,
-        quantum_elo,
+        black_elo,
+        white_elo,
+        name_1,
+        name_2,
         c_puct_base,
         c_puct_init,
         logger,
@@ -241,7 +267,7 @@ def run_evaluator_loop(
 
     # Final logging
     logger.info(f"Game result: {game_stats['game_result']}")
-    logger.info(f"ResNet Elo: {resnet_elo.rating}, QuantumNet Elo: {quantum_elo.rating}")
+    logger.info(f"Elo rating : {name_1}: {black_elo.rating}, {name_2}: {white_elo.rating}")
     logger.info(f"Game length: {game_stats['game_length']} moves")
 
 
@@ -250,8 +276,10 @@ def play_one_game(
     env,
     black_player,
     white_player,
-    resnet_elo,
-    quantum_elo,
+    black_elo,
+    white_elo,
+    black_name,
+    white_name,
     c_puct_base,
     c_puct_init,
     logger,
@@ -281,16 +309,16 @@ def play_one_game(
         _, _, done, _ = env.step(move)
         logger.debug(f"State after move: {env.render()}")
 
-    # Determine winner
     if env.winner == env.black_player:
-        game_result = "Black wins"
-        winner, loser = resnet_elo, quantum_elo
+        game_result = f"{black_name} wins as Black"
+        winner, loser = black_elo, white_elo
     elif env.winner == env.white_player:
-        game_result = "White wins"
-        winner, loser = quantum_elo, resnet_elo
+        game_result = f"{white_name} wins as White"
+        winner, loser = white_elo, black_elo
     else:
         game_result = "Draw"
         winner, loser = None, None
+
 
     # Update Elo ratings
     if winner and loser:
@@ -300,8 +328,8 @@ def play_one_game(
     stats = {
         "game_length": env.steps,
         "game_result": game_result,
-        "resnet_elo_rating": resnet_elo.rating,
-        "quantum_elo_rating": quantum_elo.rating,
+        "black_elo_rating": black_elo.rating,
+        "white_elo_rating": white_elo.rating,
     }
 
     return stats
