@@ -188,7 +188,8 @@ class QuantumAlphaZeroNet(nn.Module):
     ) -> None:
         super().__init__()
         c, h, w = input_shape
-
+        self.num_filters = num_filters
+        self.num_search = num_search
         # We need to use additional padding for Gomoku to fix agent shortsighted on edge cases
         num_padding = 3 if gomoku else 1
 
