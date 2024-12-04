@@ -2,7 +2,8 @@ import os
 import torch
 from collections import OrderedDict
 import matplotlib.pyplot as plt
-
+from itertools import combinations
+import random
 
 
 import os
@@ -170,7 +171,7 @@ def create_mcts_player(
 
 
 @torch.no_grad()
-def run_game_series(
+def run_pair_game_series(
     seed: int,
     network_1: torch.nn.Module,
     network_2: torch.nn.Module,
@@ -289,6 +290,140 @@ def run_game_series(
     # Visualize Elo ratings
     visualize_elo_ratings(black_elo.rating, white_elo.rating, logs_dir)
 
+@torch.no_grad()
+def run_tournament(
+    seed: int,
+    agents: dict,
+    env: BoardGameEnv,
+    device: torch.device,
+    num_games: int,
+    num_simulations: int,
+    num_parallel: int,
+    c_puct_base: float,
+    c_puct_init: float,
+    default_rating: float,
+    log_level: str,
+    logs_dir: str = "./logs",
+
+):
+    """
+    Run a tournament where all agents play against each other,
+    updating Elo ratings after each match.
+
+
+    """
+
+    set_seed(seed)
+    logger = create_logger(log_level)
+    # Initialize Elo ratings
+    for agent_name, agent in agents.items():
+        if "elo_rating" not in agent:
+            agent["elo_rating"] = default_rating
+    agents_list = list(agents.keys())
+
+
+
+    # Play multiple games
+    for game in range(num_games):
+        #randomly select two agents
+        agent_1_name, agent_2_name = random.sample(agents_list, 2)
+        logger.info(f"Starting match between {agent_1_name} and {agent_2_name}")
+        logger.info(f"Playing game {game + 1}/{num_games}")
+
+        network_1 = agents[agent_1_name]["network"]
+        network_2 = agents[agent_2_name]["network"]
+
+        network_1 = network_1.to(device)
+        network_2 = network_2.to(device)
+
+        network_1.eval()
+        network_2.eval()
+
+        black_elo = EloRating(rating=agents[agent_1_name]["elo_rating"])
+        white_elo = EloRating(rating=agents[agent_2_name]["elo_rating"])
+
+
+        loaded_state_1 = torch.load(agents[agent_1_name]["checkpoint"], map_location=device)
+        cleaned_state_dict_1 = strip_prefix(loaded_state_1['network'])   # Strip `_orig_mod.` prefix
+        network_1.load_state_dict(cleaned_state_dict_1)
+        logger.info(f"network 1 model loaded from checkpoint: {agents[agent_1_name]['checkpoint']}")
+
+
+        loaded_state_2 = torch.load(agents[agent_2_name]["checkpoint"], map_location=device)
+        cleaned_state_dict_2 = strip_prefix(loaded_state_2['network'])
+        network_2.load_state_dict(cleaned_state_dict_2)
+        logger.info(f"network 2 model loaded from checkpoint: {agents[agent_2_name]['checkpoint']}")
+
+
+        black_wins, white_wins = 0, 0
+
+         # Create MCTS players
+        black_player = create_mcts_player(
+            network=network_1,
+            device=device,
+            num_simulations=num_simulations,
+            num_parallel=num_parallel,
+            root_noise=False,
+            deterministic=False,
+        )
+        white_player = create_mcts_player(
+            network=network_2,
+            device=device,
+            num_simulations=num_simulations,
+            num_parallel=num_parallel,
+            root_noise=False,
+            deterministic=False,
+        )
+
+        # Randomize roles
+        if np.random.rand() < 0.5:
+            logger.info(f"Game {game + 1}: {agent_1_name} is Black, {agent_2_name} is White")
+            current_black_player, current_white_player = black_player, white_player
+            current_black_name, current_white_name = agent_1_name, agent_2_name
+            current_black_elo, current_white_elo = black_elo, white_elo
+        else:
+            logger.info(f"Game {game + 1}: {agent_2_name} is Black, {agent_1_name} is White")
+            current_black_player, current_white_player = white_player, black_player
+            current_black_name, current_white_name = agent_2_name, agent_1_name
+            current_black_elo, current_white_elo = white_elo, black_elo
+
+        game_stats = play_one_game(
+            env = env,
+            black_player = current_black_player,
+            white_player = current_white_player,
+            black_elo = current_black_elo,
+            white_elo = current_white_elo,
+            c_puct_base = c_puct_base,
+            c_puct_init = c_puct_init,
+            logger = logger,
+        )
+
+        # Track results
+        if game_stats["game_result"] == "Black wins":
+
+            agents[current_black_name]["wins"] += 1
+            agents[current_white_name]["lost"] += 1
+
+        elif game_stats["game_result"] == "White wins":
+
+            agents[current_white_name]["wins"] += 1
+            agents[current_black_name]["lost"] += 1
+
+
+        # Update Elo ratings
+        agents[current_black_name]["elo_rating"] = current_black_elo.rating
+        agents[current_white_name]["elo_rating"] = current_white_elo.rating
+
+
+    # Log results
+    for agent_name, agent in agents.items():
+        logger.info(
+            f"Agent {agent_name} -> Wins: {agent['wins']}, Losses: {agent['lost']}, Elo Rating: {agent['elo_rating']:.2f}"
+        )
+
+    visualize_all_elo_ratings(agents, logs_dir)
+
+
 
 @torch.no_grad()
 def play_one_game(
@@ -321,10 +456,10 @@ def play_one_game(
             warm_up=False,
         )
         logger.debug(f"Player {env.to_play} chose move: {move}")
-        logger.debug(f"State before move: {env.render()}")
+        # logger.debug(f"State before move: {env.render()}")
 
         _, _, done, _ = env.step(move)
-        logger.debug(f"State after move: {env.render()}")
+        # logger.debug(f"State after move: {env.render()}")
 
     if env.winner == env.black_player:
         game_result = "Black wins"
@@ -380,3 +515,34 @@ def visualize_elo_ratings(black_elo: float, white_elo: float,
     plt.show()
 
     # print(f"Elo ratings chart saved to {output_path}")
+
+
+def visualize_all_elo_ratings(agents: dict, logs_dir: str) -> None:
+    """
+    Create a single bar chart of Elo ratings for all agents.
+
+    """
+    agent_names = list(agents.keys())
+    elo_ratings = [agent["elo_rating"] for agent in agents.values()]
+       # Use a colormap for distinct colors
+    colors = plt.cm.tab20(np.linspace(0, 1, len(agent_names)))
+
+    # Create the bar chart
+    plt.figure(figsize=(10, 6))
+    plt.bar(agent_names, elo_ratings, color= colors)
+    plt.xlabel("Agents")
+    plt.ylabel("Elo Rating")
+    plt.title("Final Elo Ratings for All Agents")
+    plt.xticks(rotation=45, ha="right")  # Rotate labels for better readability
+
+    # Add Elo values above the bars
+    for i, rating in enumerate(elo_ratings):
+        plt.text(i, rating + 5, f"{rating:.2f}", ha="center", fontsize=10)
+
+    # # Save and display the plot
+    # output_path = os.path.join(logs_dir, "final_elo_ratings.png")
+    # os.makedirs(logs_dir, exist_ok=True)
+    # # plt.savefig(output_path)
+    plt.show()
+
+    # print(f"Final Elo ratings chart saved at: {output_path}")
