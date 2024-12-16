@@ -1,6 +1,6 @@
 ## Code Structure
 
-This repository contains the implementation of AlphaZero with modifications, along with support for various board games like Go and Gomoku. Below is the detailed structure of the project:
+This repository contains the implementation of Neural search and AlphaGoZero . Below is the detailed structure of the project:
 
 ### Main Source Code (`alpha_zero` Directory)
 Contains the main source code for the project.
