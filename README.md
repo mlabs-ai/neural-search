@@ -19,11 +19,14 @@ Contains essential modules for AlphaZero, including the MCTS search algorithm, s
 - **`multi_game.py`**: Implementation of a game series among multiple agents
 - **`testing_data.ipynb`**: Generation of the AlphaGo game dataset from sgf files
 
-### Neural Search librarry (`lib` Directory)
-Contains essential modules for neural search, including the search architecture, quantum search modeule
-- **architecture.py** : Search module implementation
-- **layers.py** : implementation of many wrapper functions like Unpack, residual etc
-- **quantumsearch.py** : implementation of Quantum search
+### Neural Search Library (`lib` Directory)
+
+This directory contains the core modules for neural search, including the implementation of the search architecture and quantum search module:
+
+- **`architecture.py`** :Implements the main search module.
+- **`layers.py`** : Contains wrapper functions such as `Unpack` and residual layer implementations.
+- **`quantumsearch.py`** :Provides the implementation of the Quantum Search module.
+
 
 ### Board Game Environments (`envs` Directory)
 Modules for various board games, implemented in OpenAI Gym API:
