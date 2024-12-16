@@ -24,7 +24,7 @@ Contains essential modules for AlphaZero, including the MCTS search algorithm, s
 This directory contains the core modules for neural search, including the implementation of the search architecture and quantum search module:
 
 - **`architecture.py`** :Implements the main search module.
-- **`layers.py`** : Contains wrapper functions such as `Unpack` and residual layer implementations.
+- **`layers.py`** : Contains wrapper functions such as `Unpack`, 'Residual' layer implementations.
 - **`quantumsearch.py`** :Provides the implementation of the Quantum Search module.
 
 
