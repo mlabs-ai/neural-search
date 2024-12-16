@@ -35,7 +35,6 @@ Modules for various board games, implemented in OpenAI Gym API:
 - **`coords.py`**: Core logic for board games, adapted from the Minigo project.
 - **`go_engine.py`**: Core logic and scoring functions for Go (adapted from Minigo).
 - **`go.py`**: Implementation of the Go board game using `go_engine.py`.
-- **`gomoku.py`**: Implementation of freestyle Gomoku board game (a.k.a five in a row).
 - **`gui.py`**: Basic GUI program for board games.
 
 ### Utilities (`utils` Directory)
@@ -44,13 +43,15 @@ Contains helper modules like logging, data transformation, and SGF wrappers:
 - **`sgf_wrapper.py`**: Code for reading and replaying Go game records in SGF format (adapted from Minigo).
 - **`transformation.py`**: Functions for random rotation and mirroring of training samples.
 
+### Neural Search Application
+- **maze_entropy_quantum.ipynb**: Implements neural search with reinforcement learning (RL).
+- **Quantum_mnist**: Implements neural search for classifying MNIST data.
 
 ### Training Programs
 Driver programs for training agents:
 
 - **`training_go.py`**: Initialize the training session for 9x9 Go board.
-- **`training_go_jumbo.py`**: Initialize training for 19x19 Go board (requires powerful computational resources).
-- **`training_gomoku.py`**: Initialize training for 13x13 Gomoku board.
+
 
 ## Reference code
 - https://github.com/michaelnny/alpha_zero
