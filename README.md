@@ -49,4 +49,5 @@ Driver programs for training agents:
 - **`training_go_jumbo.py`**: Initialize training for 19x19 Go board (requires powerful computational resources).
 - **`training_gomoku.py`**: Initialize training for 13x13 Gomoku board.
 
-
+## Reference code
+- https://github.com/michaelnny/alpha_zero
