@@ -1,6 +1,10 @@
 ## Code Structure
 
+<<<<<<< HEAD
 This repository contains the implementation of Neural search and AlphaGoZero . Below is the detailed structure of the project:
+=======
+This repository contains the implementation of Neural Search and AlphaGo. Below is the detailed structure of the project:
+>>>>>>> 0220a99 (Update README.md)
 
 ### Main Source Code (`alpha_zero` Directory)
 Contains the main source code for the project.
