@@ -2,19 +2,14 @@ import os
 import torch
 from collections import OrderedDict
 import matplotlib.pyplot as plt
-from itertools import combinations
 import random
 
 
 import os
-import shutil
 from typing import Any, Text, Callable, Mapping, Iterable, Tuple
-import time
 from pathlib import Path
 from collections import OrderedDict, deque
-import queue
-import multiprocessing as mp
-import threading
+
 import pickle
 import random
 
@@ -25,7 +20,6 @@ from torch.utils.data import DataLoader, random_split
 torch.autograd.set_detect_anomaly(True)
 
 import numpy as np
-from copy import copy, deepcopy
 import matplotlib.pyplot as plt
 
 # from alpha_zero.core.mcts_v1 import Node, parallel_uct_search, uct_search
@@ -33,11 +27,9 @@ import matplotlib.pyplot as plt
 from alpha_zero.core.mcts_v2 import Node, parallel_uct_search, uct_search
 
 from alpha_zero.envs.base import BoardGameEnv
-from alpha_zero.core.eval_dataset import build_eval_dataset
 from alpha_zero.core.rating import EloRating
 from alpha_zero.core.replay import UniformReplay, Transition
 from alpha_zero.utils.csv_writer import CsvWriter
-from alpha_zero.utils.transformation import apply_random_transformation
 from alpha_zero.utils.util import Timer, create_logger, get_time_stamp
 
 
@@ -354,9 +346,6 @@ def run_tournament(
         network_2.load_state_dict(cleaned_state_dict_2)
         logger.info(f"network 2 model loaded from checkpoint: {agents[agent_2_name]['checkpoint']}")
 
-
-        black_wins, white_wins = 0, 0
-
          # Create MCTS players
         black_player = create_mcts_player(
             network=network_1,
@@ -421,7 +410,7 @@ def run_tournament(
             f"Agent {agent_name} -> Wins: {agent['wins']}, Losses: {agent['lost']}, Elo Rating: {agent['elo_rating']:.2f}"
         )
 
-    visualize_all_elo_ratings(agents, logs_dir)
+    visualize_all_elo_ratings(agents)
 
 
 
@@ -511,20 +500,18 @@ def visualize_elo_ratings(black_elo: float, white_elo: float,
 
     # Save and show plot
     output_path = os.path.join(logs_dir, "elo_ratings_comparison.png")
-    # plt.savefig(output_path)
+    plt.savefig(output_path)
     plt.show()
 
-    # print(f"Elo ratings chart saved to {output_path}")
 
-
-def visualize_all_elo_ratings(agents: dict, logs_dir: str) -> None:
+def visualize_all_elo_ratings(agents: dict) -> None:
     """
     Create a single bar chart of Elo ratings for all agents.
 
     """
     agent_names = list(agents.keys())
     elo_ratings = [agent["elo_rating"] for agent in agents.values()]
-       # Use a colormap for distinct colors
+    # Use a colormap for distinct colors
     colors = plt.cm.tab20(np.linspace(0, 1, len(agent_names)))
 
     # Create the bar chart
@@ -539,10 +526,6 @@ def visualize_all_elo_ratings(agents: dict, logs_dir: str) -> None:
     for i, rating in enumerate(elo_ratings):
         plt.text(i, rating + 5, f"{rating:.2f}", ha="center", fontsize=10)
 
-    # # Save and display the plot
-    # output_path = os.path.join(logs_dir, "final_elo_ratings.png")
-    # os.makedirs(logs_dir, exist_ok=True)
-    # # plt.savefig(output_path)
+
     plt.show()
 
-    # print(f"Final Elo ratings chart saved at: {output_path}")
