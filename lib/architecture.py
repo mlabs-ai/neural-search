@@ -3,8 +3,8 @@ import torch.nn as nn
 
 class Search(nn.Module):
     def __init__(
-            self, 
-            transition: nn.Module, 
+            self,
+            transition: nn.Module,
             fitness: nn.Module,
             max_depth: int,
             beam_width: int,
@@ -22,13 +22,13 @@ class Search(nn.Module):
         self.beam_width = beam_width
         self.temperature = temperature
         self.reuse_parents = reuse_parents
-    
+
     def forward(self, x):
         return self.search(x)
-    
+
     def set_temperature(self, temperature):
         self.temperature = temperature
-    
+
     def search(self, x: torch.Tensor):
         next_states = x[None, ...]
 
@@ -47,7 +47,7 @@ class Search(nn.Module):
         if self.reuse_parents:
             candidates = torch.cat([current_states, candidates])
 
-        # candidates_fitness: (max_width * n_candidates), n_batch, ..., n_dim
+        # candidates_fitness: (max_width * n_candidates), n_batch, ..., 1
         candidates_fitness = self.fitness(candidates).squeeze(-1) / self.temperature
 
         if len(candidates) <= self.beam_width:
@@ -60,7 +60,7 @@ class Search(nn.Module):
             top_candidates = samples.movedim(-1, 0).reshape(target_shape)
         else:
             top_candidates = torch.topk(candidates_fitness, self.beam_width, dim=0).indices
-            
+
         if len(top_candidates.shape) == 1:
             top_candidates = top_candidates[..., None]
 
@@ -69,8 +69,8 @@ class Search(nn.Module):
 
 class RandomizedSearch(Search):
     def __init__(
-            self, 
-            transition: nn.Module, 
+            self,
+            transition: nn.Module,
             sample: nn.Module,
             fitness: nn.Module,
             **args,

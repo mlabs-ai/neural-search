@@ -1,4 +1,7 @@
 .venv
+venv
+
+go_dataset.pth
 
 **.pyc
 
