@@ -56,8 +56,12 @@ def set_seed(seed) -> None:
 
 
 def maybe_create_dir(dir) -> None:
-    if dir is not None and dir != '' and not os.path.exists(dir):
+    if dir is not None and dir != '':
         p = Path(dir)
+        if p.exists():
+            # Delete the directory and its contents
+            shutil.rmtree(p)
+        # Create a new empty directory
         p.mkdir(parents=True, exist_ok=False)
 
 
