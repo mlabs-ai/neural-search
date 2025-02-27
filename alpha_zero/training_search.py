@@ -53,7 +53,7 @@ flags.DEFINE_integer('num_search', 5, ' number of search modules for quantum sea
 flags.DEFINE_integer('min_games', 2000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    1000,
+    500,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
 # flags.DEFINE_integer(
@@ -63,12 +63,12 @@ flags.DEFINE_integer(
 # )
 flags.DEFINE_integer(
     'replay_capacity',
-    25000 * 50,
+    21000 * 50,
     'Replay buffer capacity is number of game * average game length.' 'Note, 250000 games may need ~30GB of RAM',
 )
 flags.DEFINE_integer(
     'batch_size',
-    256,
+    512,
     'To avoid overfitting, we want to make sure the agent only sees ~10% of samples in the replay over one checkpoint.'
     'That is, batch_size * ckpt_interval <= replay_capacity * 0.1',
 )
@@ -84,10 +84,10 @@ flags.DEFINE_float('init_lr', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('lr_decay', 0.1, 'Learning rate decay rate.')
 flags.DEFINE_multi_integer(
     'lr_milestones',
-    [100000, 200000],
+    [50000, 100000],
     'The number of training steps at which the learning rate will be decayed.',
 )
-flags.DEFINE_float('l2_regularization', 1e-3, 'The L2 regularization parameter applied to weights.')
+flags.DEFINE_float('l2_regularization', 1e-4, 'The L2 regularization parameter applied to weights.')
 flags.DEFINE_float('sgd_momentum', 0.9, '')
 
 flags.DEFINE_integer(
@@ -95,7 +95,7 @@ flags.DEFINE_integer(
     int(5e5),
     'Number of training steps (measured in network parameter update, one batch is one training step).',
 )
-flags.DEFINE_integer('num_actors', 20, 'Number of self-play actor processes.')
+flags.DEFINE_integer('num_actors', 32, 'Number of self-play actor processes.')
 flags.DEFINE_integer(
     'num_simulations',
     200,
@@ -103,7 +103,7 @@ flags.DEFINE_integer(
 )
 flags.DEFINE_integer(
     'num_parallel',
-    1,
+    6,
     'Number of leaves to collect before using the neural network to evaluate the positions during MCTS search,'
     '1 means no parallel search.',
 )
@@ -163,7 +163,7 @@ flags.DEFINE_float(
     1500,
     'Default elo rating, change to the rating (for black) from last checkpoint when resume training.',
 )
-flags.DEFINE_integer('ckpt_interval', 500, 'The frequency (in training step) to create new checkpoint.')
+flags.DEFINE_integer('ckpt_interval', 512, 'The frequency (in training step) to create new checkpoint.')
 flags.DEFINE_integer('log_interval', 200, 'The frequency (in training step) to log training statistics.')
 flags.DEFINE_string('ckpt_dir', './checkpoints/go/5x5/search/f_16s_5', 'Path for checkpoint file.')
 flags.DEFINE_string(
