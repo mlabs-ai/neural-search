@@ -53,7 +53,7 @@ flags.DEFINE_integer('num_search', 5, ' number of search modules for quantum sea
 flags.DEFINE_integer('min_games', 2000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    500,
+    800,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
 # flags.DEFINE_integer(
@@ -165,10 +165,10 @@ flags.DEFINE_float(
 )
 flags.DEFINE_integer('ckpt_interval', 512, 'The frequency (in training step) to create new checkpoint.')
 flags.DEFINE_integer('log_interval', 200, 'The frequency (in training step) to log training statistics.')
-flags.DEFINE_string('ckpt_dir', './checkpoints/go/5x5/search/f_16s_5', 'Path for checkpoint file.')
+flags.DEFINE_string('ckpt_dir', './checkpoints_16f_800sgf/go/5x5/search', 'Path for checkpoint file.')
 flags.DEFINE_string(
     'logs_dir',
-    './logs/go/5x5/search/f_16s_5',
+    './logs_16f_800sgf/go/5x5/search',
     'Path to save statistics for self-play, training, and evaluation.',
 )
 flags.DEFINE_string(
