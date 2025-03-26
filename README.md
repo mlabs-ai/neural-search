@@ -8,7 +8,7 @@ Contains the main source code for the project.
 ### Core Modules (`core` Directory)
 Contains essential modules for AlphaZero, including the MCTS search algorithm, self-play training pipeline, rating systems, etc.
 
-- **'quantum_net.py'**: **Inplementation of the ResNet based Quantum Neural search**
+- **`quantum_net.py`**: **Inplementation of the ResNet based Quantum Neural search**
 - **`mcts_v1.py`**: Naive implementation of the MCTS search algorithm used by AlphaZero.
 - **`mcts_v2.py`**: Faster implementation (~3x faster than `mcts_v1.py`), adapted from the Minigo project.
 - **`pipeline.py`**: Core functions for the AlphaZero training pipeline, including self-play actor, learner, evaluator, supervised learning loop
@@ -18,7 +18,7 @@ Contains essential modules for AlphaZero, including the MCTS search algorithm, s
 - **`rating.py`**: Elo ratings computation code.
 - **`replay.py`**: Uniform random replay buffer implementation.
 - **`Alphago_series.py`**: Implementation of a game series among multiple agents (supervised search agents)
-- **'Alphago_series_RL.py'**: Implementation of a game series among multiple agents (agents trained with RL)
+- **`Alphago_series_RL.py`**: Implementation of a game series among multiple agents (agents trained with RL)
 - **`testing_data.ipynb`**: Generation of the AlphaGo game dataset from sgf files
 
 ### Neural Search Library (`lib` Directory)
@@ -52,7 +52,8 @@ Contains helper modules like logging, data transformation, and SGF wrappers:
 ### Training Programs
 Driver programs for training agents:
 
-- **`training_go.py`**: Initialize the training session for 9x9 Go board.
+- **`training_go.py`**: Launches training for the baseline model on a 5x5 Go board.
+- **`training_search.py`**:  Launches training for search-based models on a 5x5 Go board.
 
 
 ## Reference code
