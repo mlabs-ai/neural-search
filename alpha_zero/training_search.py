@@ -37,24 +37,30 @@ flags.DEFINE_integer(
 )
 
 
-# 11b128 version uses these configurations
 
-flags.DEFINE_integer('num_res_blocks', 5, 'Number of residual blocks in the neural network.')
-
-flags.DEFINE_integer('num_filters', 32, 'Number of filters for the conv2d layers in the neural network.')
+flags.DEFINE_integer('num_filters', 16, 'Number of filters for the conv2d layers in the neural network.')
+flags.DEFINE_integer('max_depth', 1, ' maximum depth for quantum search')
+flags.DEFINE_integer('branching_width', 3, ' branching_width for quantum search')
+flags.DEFINE_integer('beam_width', 1, ' beam_width for quantum search')
 flags.DEFINE_integer(
     'num_fc_units',
     128,
     'Number of hidden units in the linear layer of the neural network.',
 )
+flags.DEFINE_integer('num_search', 5, ' number of search modules for quantum search')
 
+# flags.DEFINE_integer('min_games', 20000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer('min_games', 2000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    500,
+    800,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
-
+# flags.DEFINE_integer(
+#     'replay_capacity',
+#     250000 * 50,
+#     'Replay buffer capacity is number of game * average game length.' 'Note, 250000 games may need ~30GB of RAM',
+# )
 flags.DEFINE_integer(
     'replay_capacity',
     21000 * 50,
@@ -78,7 +84,7 @@ flags.DEFINE_float('init_lr', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('lr_decay', 0.1, 'Learning rate decay rate.')
 flags.DEFINE_multi_integer(
     'lr_milestones',
-   [50000, 100000],
+    [50000, 100000],
     'The number of training steps at which the learning rate will be decayed.',
 )
 flags.DEFINE_float('l2_regularization', 1e-4, 'The L2 regularization parameter applied to weights.')
@@ -159,20 +165,20 @@ flags.DEFINE_float(
 )
 flags.DEFINE_integer('ckpt_interval', 512, 'The frequency (in training step) to create new checkpoint.')
 flags.DEFINE_integer('log_interval', 200, 'The frequency (in training step) to log training statistics.')
-flags.DEFINE_string('ckpt_dir', './checkpoints/go/5x5/resnet', 'Path for checkpoint file.')
+flags.DEFINE_string('ckpt_dir', './checkpoints_16f_800sgf/go/5x5/search', 'Path for checkpoint file.')
 flags.DEFINE_string(
     'logs_dir',
-    './logs/go/5x5/resnet',
+    './logs_16f_800sgf/go/5x5/search',
     'Path to save statistics for self-play, training, and evaluation.',
 )
 flags.DEFINE_string(
     'eval_games_dir',
-    './games/pro_games/go/9x9',
+    './games/pro_games/go/5x5',
     'Path contains evaluation games in sgf format.',
 )
 flags.DEFINE_string(
     'save_sgf_dir',
-    './games/selfplay_games/go/9x9',
+    './games/selfplay_games/go/5x5',
     'Path to selfplay and evaluation games in sgf format.',
 )
 flags.DEFINE_integer('save_sgf_interval', 500, 'How often to save self-play games.')
@@ -212,7 +218,7 @@ from alpha_zero.core.pipeline import (
     set_seed,
     maybe_create_dir,
 )
-from alpha_zero.core.network import AlphaZeroNet
+from alpha_zero.core.quantum_net import QuantumAlphaZeroNet
 from alpha_zero.core.replay import UniformReplay
 from alpha_zero.utils.util import extract_args_from_flags_dict, create_logger
 
@@ -254,12 +260,16 @@ def main():
     num_actions = eval_env.action_space.n
 
     def network_builder():
-        return AlphaZeroNet(
+        return QuantumAlphaZeroNet(
             input_shape,
             num_actions,
-            FLAGS.num_res_blocks,
             FLAGS.num_filters,
+            FLAGS.max_depth,
+            FLAGS.branching_width,
+            FLAGS.beam_width,
             FLAGS.num_fc_units,
+            FLAGS.num_search
+
         )
 
     network = network_builder()
