@@ -574,8 +574,8 @@ def run_learner_loop(  # noqa: C901
                         continue
 
                     optimizer.zero_grad()
-                    pi_loss, v_loss = compute_losses(network, device, transitions, argument_data)
-                    loss = pi_loss + v_loss
+                    pi_loss, v_loss, entropy = compute_losses(network, device, transitions, argument_data)
+                    loss = pi_loss + v_loss - entropy
                     loss.backward()
                     optimizer.step()
                     lr_scheduler.step()
@@ -809,7 +809,12 @@ def compute_losses(network, device, transitions, argumentation=False) -> Tuple[t
     # State value MSE loss
     value_loss = F.mse_loss(pred_v.squeeze(), target_v, reduction='mean')
 
-    return policy_loss, value_loss
+    #get entropies
+    entropy_net = 0.0
+    for search in network.search:
+        entropy_net = entropy_net + search.get_entropy()
+
+    return policy_loss, value_loss, entropy_net
 
 
 def maybe_adjust_resign_threshold(current_v, current_rate, target_rate, min_v=-0.9999, smoothing_factor=0.5) -> float:
