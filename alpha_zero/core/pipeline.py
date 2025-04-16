@@ -588,6 +588,7 @@ def run_learner_loop(  # noqa: C901
                             'training_steps': training_steps,
                             'policy_loss': pi_loss.detach().item(),
                             'value_loss': v_loss.detach().item(),
+                            'entropy': entropy.detach().item(),
                             'learning_rate': lr_scheduler.get_last_lr()[0],
                             'total_games': replay.num_games_added,
                             'total_samples': replay.num_samples_added,
@@ -813,6 +814,7 @@ def compute_losses(network, device, transitions, argumentation=False) -> Tuple[t
     entropy_net = 0.0
     for search in network.search:
         entropy_net = entropy_net + search.get_entropy()
+    entropy_net = entropy_net / len(network.search)
 
     return policy_loss, value_loss, entropy_net
 

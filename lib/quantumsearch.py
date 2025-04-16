@@ -80,7 +80,7 @@ class RegularizedQuantumSearch(nn.Module):
 
     def forward(self, x):
         # reset entropy
-        self._entropy = 0.0
+        self._entropy = torch.tensor(0.0, device=x.device)
         return self.search(x)
 
     def search(self, x: torch.Tensor):
@@ -90,6 +90,7 @@ class RegularizedQuantumSearch(nn.Module):
         for _ in range(self.max_depth):
             beam, entropy = self.next_states(beam)
             self._entropy = self._entropy + entropy.mean()
+        self._entropy = self._entropy / self.max_depth
 
         y = beam.mean(0)
 
@@ -113,7 +114,7 @@ class RegularizedQuantumSearch(nn.Module):
 
     def get_entropy(self) -> float:
         if self._entropy is None:
-           return 0.0
+           return torch.tensor(0.0)
         return self._entropy * self.entropy_weight
 
 
