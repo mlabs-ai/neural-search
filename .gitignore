@@ -1,6 +1,7 @@
 .venv
 venv
-
+checkpoints/
+logs/
 go_dataset.pth
 
 **.pyc
