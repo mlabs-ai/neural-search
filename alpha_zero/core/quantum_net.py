@@ -11,9 +11,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from lib.layers import Residual, UnpackGrid, MultiBatchConv2d
-from lib.quantumsearch import FitnessFunction, OneToManyNetwork, QuantumSearch
-from lib.quantumsearch import TransitionFunction
+from lib.layers import UnpackGrid, MultiBatchConv2d
+from lib.quantumsearch import OneToManyNetwork, QuantumSearch, RegularizedQuantumSearch
+from lib.quantumsearch import TransitionFunction, FitnessFunction
 
 
 class NetworkOutputs(NamedTuple):
@@ -184,6 +184,8 @@ class QuantumAlphaZeroNet(nn.Module):
         beam_width: int = 3,
         num_fc_units: int = 256,
         num_search: int =1,
+        entropy_weight: float = 0.01,
+        entropy_regularization: bool = False,
         gomoku: bool = False,
     ) -> None:
         super().__init__()
@@ -212,11 +214,13 @@ class QuantumAlphaZeroNet(nn.Module):
         )
 
 
-        self.search = nn.Sequential(*list(QuantumSearch(
-            transition =  TransitionFunction(
-                OneToManyNetwork(
-                     UnpackedResidual(nn.Sequential(
-                        TransitionResNetBlock(num_input_filters=num_filters, output_filter_factor=branching_width, input_size = conv_out_hw),
+        if entropy_regularization:
+            print('regularized')
+            self.search = nn.Sequential(*list(RegularizedQuantumSearch(
+                transition =  TransitionFunction(
+                    OneToManyNetwork(
+                        UnpackedResidual(nn.Sequential(
+                            TransitionResNetBlock(num_input_filters=num_filters, output_filter_factor=branching_width, input_size = conv_out_hw),
                         UnpackGrid(branching_width) # Batch, ...,  3 * H -> Batch, ..., H, 3
                     ))
                 ),
@@ -231,9 +235,37 @@ class QuantumAlphaZeroNet(nn.Module):
             ),
             max_depth = max_depth,
             beam_width = beam_width,
-            branching_width = branching_width)
+            branching_width = branching_width,
+            entropy_weight = entropy_weight
+            )
             for _ in range(num_search)
         ))
+        else:
+            self.search = nn.Sequential(*list(QuantumSearch(
+                transition =  TransitionFunction(
+                    OneToManyNetwork(
+                        UnpackedResidual(nn.Sequential(
+                            TransitionResNetBlock(num_input_filters=num_filters, output_filter_factor=branching_width, input_size = conv_out_hw),
+                        UnpackGrid(branching_width) # Batch, ...,  3 * H -> Batch, ..., H, 3
+                    ))
+                ),
+            ),
+            fitness=FitnessFunction(
+                OneToManyNetwork(
+                    nn.Sequential(
+                        FitnessResNetBlock(num_input_filters=num_filters, num_output_filters = beam_width, input_size = conv_out_hw, residual=False),
+                        UnpackGrid(beam_width) # Batch, ...,  3 * H -> Batch, ..., 1, 3
+                    )
+                ),
+            ),
+            max_depth = max_depth,
+            beam_width = beam_width,
+            branching_width = branching_width,
+            entropy_weight = entropy_weight,
+            )
+            for _ in range(num_search)
+        ))
+
 
 
         self.policy_head = nn.Sequential(
