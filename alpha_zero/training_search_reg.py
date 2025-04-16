@@ -52,7 +52,7 @@ flags.DEFINE_integer(
     128,
     'Number of hidden units in the linear layer of the neural network.',
 )
-flags.DEFINE_integer('num_search', 2, ' number of search modules for quantum search')
+flags.DEFINE_integer('num_search', 5, ' number of search modules for quantum search')
 flags.DEFINE_float('entropy_weight', 0.1, 'Entropy weight for entropy regularization')
 flags.DEFINE_bool('entropy_regularization', True, 'Enable entropy regularization')
 
@@ -110,7 +110,7 @@ flags.DEFINE_integer(
 )
 flags.DEFINE_integer(
     'num_parallel',
-    1,
+    6,
     'Number of leaves to collect before using the neural network to evaluate the positions during MCTS search,'
     '1 means no parallel search.',
 )
@@ -171,8 +171,8 @@ flags.DEFINE_float(
     'Default elo rating, change to the rating (for black) from last checkpoint when resume training.',
 )
 flags.DEFINE_integer('ckpt_interval', 500, 'The frequency (in training step) to create new checkpoint.')
-flags.DEFINE_integer('log_interval', 50, 'The frequency (in training step) to log training statistics.')
-flags.DEFINE_string('ckpt_dir', './checkpoints/go/5x5/search/test_entropy/f_16s_5', 'Path for checkpoint file.')
+flags.DEFINE_integer('log_interval', 100, 'The frequency (in training step) to log training statistics.')
+flags.DEFINE_string('ckpt_dir', './checkpoints_entropy/5x5search/f16_s5_d1_e0.1', 'Path for checkpoint file.')
 flags.DEFINE_string(
     'logs_dir',
     './logs/go/5x5/search/test_entropy/f_16s_5',

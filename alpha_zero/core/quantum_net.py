@@ -215,7 +215,7 @@ class QuantumAlphaZeroNet(nn.Module):
 
 
         if entropy_regularization:
-            print('regularized')
+            
             self.search = nn.Sequential(*list(RegularizedQuantumSearch(
                 transition =  TransitionFunction(
                     OneToManyNetwork(
