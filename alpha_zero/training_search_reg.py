@@ -60,7 +60,7 @@ flags.DEFINE_bool('entropy_regularization', True, 'Enable entropy regularization
 flags.DEFINE_integer('min_games', 2000, 'Collect number of self-play games before learning starts.')
 flags.DEFINE_integer(
     'games_per_ckpt',
-    1000,
+    500,
     'Collect minimum number of self-play games using the last checkpoint before creating the next checkpoint.',
 )
 # flags.DEFINE_integer(
@@ -91,7 +91,7 @@ flags.DEFINE_float('init_lr', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('lr_decay', 0.1, 'Learning rate decay rate.')
 flags.DEFINE_multi_integer(
     'lr_milestones',
-    [100000, 200000],
+    [70000, 100000],
     'The number of training steps at which the learning rate will be decayed.',
 )
 flags.DEFINE_float('l2_regularization', 1e-3, 'The L2 regularization parameter applied to weights.')
@@ -276,7 +276,6 @@ def main():
             FLAGS.beam_width,
             FLAGS.num_fc_units,
             FLAGS.num_search,
-            FLAGS.entropy_weight,
             FLAGS.entropy_regularization,
         )
 
@@ -370,6 +369,7 @@ def main():
             network=network,
             optimizer=optimizer,
             lr_scheduler=lr_scheduler,
+            entropy_weight = FLAGS.entropy_weight,
             device=learner_device,
             replay=replay,
             logger=logger,

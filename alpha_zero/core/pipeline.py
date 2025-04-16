@@ -393,6 +393,7 @@ def run_learner_loop(  # noqa: C901
     network: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler.MultiStepLR,
+    entropy_weight : float,
     device: torch.device,
     replay: UniformReplay,
     logger: Any,
@@ -575,7 +576,7 @@ def run_learner_loop(  # noqa: C901
 
                     optimizer.zero_grad()
                     pi_loss, v_loss, entropy = compute_losses(network, device, transitions, argument_data)
-                    loss = pi_loss + v_loss - entropy
+                    loss = pi_loss + v_loss - entropy_weight * entropy
                     loss.backward()
                     optimizer.step()
                     lr_scheduler.step()
@@ -814,7 +815,7 @@ def compute_losses(network, device, transitions, argumentation=False) -> Tuple[t
     entropy_net = 0.0
     for search in network.search:
         entropy_net = entropy_net + search.get_entropy()
-    entropy_net = entropy_net / len(network.search)
+    entropy_net = entropy_net / (len(network.search)*(network.max_depth))
 
     return policy_loss, value_loss, entropy_net
 

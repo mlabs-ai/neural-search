@@ -63,8 +63,7 @@ class RegularizedQuantumSearch(nn.Module):
             max_depth: int,
             branching_width: int,
             beam_width: int,
-            entropy_weight: float = 0.01
-        ):
+           ):
         super(RegularizedQuantumSearch, self).__init__()
 
         # search functions
@@ -76,7 +75,7 @@ class RegularizedQuantumSearch(nn.Module):
         self.branching_width = branching_width
         self.beam_width = beam_width
         self._entropy =None
-        self.entropy_weight = entropy_weight
+     
 
     def forward(self, x):
         # reset entropy
@@ -90,7 +89,7 @@ class RegularizedQuantumSearch(nn.Module):
         for _ in range(self.max_depth):
             beam, entropy = self.next_states(beam)
             self._entropy = self._entropy + entropy.mean()
-        self._entropy = self._entropy / self.max_depth
+       
 
         y = beam.mean(0)
 
@@ -115,7 +114,7 @@ class RegularizedQuantumSearch(nn.Module):
     def get_entropy(self) -> float:
         if self._entropy is None:
            return torch.tensor(0.0)
-        return self._entropy * self.entropy_weight
+        return self._entropy 
 
 
 class SamplingOneToManyNetwork(nn.Module):

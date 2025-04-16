@@ -184,7 +184,6 @@ class QuantumAlphaZeroNet(nn.Module):
         beam_width: int = 3,
         num_fc_units: int = 256,
         num_search: int =1,
-        entropy_weight: float = 0.01,
         entropy_regularization: bool = False,
         gomoku: bool = False,
     ) -> None:
@@ -192,6 +191,7 @@ class QuantumAlphaZeroNet(nn.Module):
         c, h, w = input_shape
         self.num_filters = num_filters
         self.num_search = num_search
+        self.max_depth = max_depth
         # We need to use additional padding for Gomoku to fix agent shortsighted on edge cases
         num_padding = 3 if gomoku else 1
 
@@ -236,7 +236,7 @@ class QuantumAlphaZeroNet(nn.Module):
             max_depth = max_depth,
             beam_width = beam_width,
             branching_width = branching_width,
-            entropy_weight = entropy_weight
+            
             )
             for _ in range(num_search)
         ))
@@ -261,7 +261,7 @@ class QuantumAlphaZeroNet(nn.Module):
             max_depth = max_depth,
             beam_width = beam_width,
             branching_width = branching_width,
-            entropy_weight = entropy_weight,
+           
             )
             for _ in range(num_search)
         ))
