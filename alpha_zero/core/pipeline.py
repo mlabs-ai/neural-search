@@ -814,7 +814,7 @@ def compute_losses(network, device, transitions, argumentation=False) -> Tuple[t
     #get entropies
     entropies = [search.get_entropy() for search in network.search]
     entropy_net = torch.mean(torch.stack(entropies))
-    
+
 
     return policy_loss, value_loss, entropy_net
 

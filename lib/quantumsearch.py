@@ -112,9 +112,9 @@ class RegularizedQuantumSearch(nn.Module):
 
         return next_beam, entropy
 
-    def get_entropy(self) -> float:
+    def get_entropy(self) -> torch.Tensor:
         if self._entropy is None:
-           return torch.tensor(0.0)
+           return torch.tensor(0.0, requires_grad=True)
         return self._entropy
 
 
