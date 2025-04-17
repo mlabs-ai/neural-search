@@ -812,10 +812,9 @@ def compute_losses(network, device, transitions, argumentation=False) -> Tuple[t
     value_loss = F.mse_loss(pred_v.squeeze(), target_v, reduction='mean')
 
     #get entropies
-    entropy_net = 0.0
-    for search in network.search:
-        entropy_net = entropy_net + search.get_entropy()
-    entropy_net = entropy_net / (len(network.search)*(network.max_depth))
+    entropies = [search.get_entropy() for search in network.search]
+    entropy_net = torch.mean(torch.stack(entropies))
+    
 
     return policy_loss, value_loss, entropy_net
 
