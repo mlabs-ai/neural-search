@@ -31,7 +31,9 @@ class SoftSearch(nn.Module):
         beam = x[None, ...]
 
         for _ in range(self.max_depth):
-            beam = self.next_states(beam)
+            next_beam = self.next_states(beam)
+
+            beam = next_beam + beam
 
         y = beam.mean(0)
 
@@ -45,10 +47,7 @@ class SoftSearch(nn.Module):
         candidates_fitness = self.fitness(candidates, self.beam_width)
 
         # next_candidates: beam_width, n_batch, ..., n_dim
-        next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1) + beam
-          # next_candidates: beam_width, n_batch, ..., n_dim
-        # next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1) + beam
-
+        next_beam = torch.sum(torch.softmax(candidates_fitness, dim=1) * candidates, dim=1)
 
         return next_beam
 
@@ -60,9 +59,12 @@ class SoftHardSearch(nn.Module):
             fitness: nn.Module,
             max_depth: int,
             branching_width: int,
-            beam_width: int
+            beam_width: int,
+            token_dims: int = 1
         ):
         super(SoftHardSearch, self).__init__()
+
+        self.token_dims = token_dims
 
         # search functions
         self.transition = transition
@@ -80,7 +82,8 @@ class SoftHardSearch(nn.Module):
         beam = x[None, ...]
 
         for _ in range(self.max_depth):
-            beam = self.next_states(beam)
+            next_beam = self.next_states(beam)
+            beam = next_beam + beam
 
         y = beam.mean(0)
 
@@ -90,7 +93,7 @@ class SoftHardSearch(nn.Module):
         # current_states: (branching_width * n_candidates), n_batch, ..., n_batch_k, n_dim
         candidates = self.transition(beam, self.branching_width).flatten(0, 1)
 
-        # candidates_fitness: (branching_width * n_candidates), n_batch, ..., n_batch_k, (n_dim or 1)
+        # candidates_fitness: (branching_width * n_candidates), n_batch, ..., n_batch_k, 1
         candidates_fitness = self.fitness(candidates)
 
         # next_candidates: n_batch, ..., n_dim
@@ -99,14 +102,17 @@ class SoftHardSearch(nn.Module):
 
         # make sure the candidate has a single score for fitness
         # (branching_width * n_candidates), n_batch, ..., n_batch_k
-        candidate_total_fitness = torch.mean(candidates_fitness, dim=-1)
+        candidate_total_fitness = torch.mean(candidates_fitness, dim=tuple(-1-i for i in range(self.token_dims)))
 
         # top scoring candidates
         # k, n_batch, ... n_batch_k
         topk_candidate_idx = torch.topk(candidate_total_fitness, self.beam_width, 0).indices
 
+        for _ in range(self.token_dims):
+            topk_candidate_idx = topk_candidate_idx.unsqueeze(-1)
+
         # k, n_batch, ..., n_batch_k, n_dim
-        topk_candidates = candidates.gather(0, topk_candidate_idx[..., None].expand(self.beam_width, *candidates.shape[1:]))
+        topk_candidates = candidates.gather(0, topk_candidate_idx.expand(self.beam_width, *candidates.shape[1:]))
 
         # k, n_batch, ..., n_batch_k, n_dim
         next_beam = (soft_beam[None] + topk_candidates) / 2
