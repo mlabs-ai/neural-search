@@ -38,14 +38,9 @@ class UnpackGrid(nn.Module):
         self.size = size
 
     def forward(self,x):
-
         return x.reshape(*x.shape[:-3], x.shape[-3]//self.size, self.size, *x.shape[-2:]).movedim(-3,-1)
 
-
-
 class MultiBatchConv2d(nn.Conv2d):
-
-
     def forward(self, x):
         original_shape = x.shape
 

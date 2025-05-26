@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from lib.sample import Sampler
 
-class QuantumSearch(nn.Module):
+class SoftSearch(nn.Module):
     def __init__(
             self,
             transition: nn.Module,
@@ -13,7 +13,7 @@ class QuantumSearch(nn.Module):
             branching_width: int,
             beam_width: int
         ):
-        super(QuantumSearch, self).__init__()
+        super(SoftSearch, self).__init__()
 
         # search functions
         self.transition = transition
@@ -52,6 +52,67 @@ class QuantumSearch(nn.Module):
 
         return next_beam
 
+
+class SoftHardSearch(nn.Module):
+    def __init__(
+            self,
+            transition: nn.Module,
+            fitness: nn.Module,
+            max_depth: int,
+            branching_width: int,
+            beam_width: int
+        ):
+        super(SoftHardSearch, self).__init__()
+
+        # search functions
+        self.transition = transition
+        self.fitness = fitness
+
+        # search parameters
+        self.max_depth = max_depth
+        self.branching_width = branching_width
+        self.beam_width = beam_width
+
+    def forward(self, x):
+        return self.search(x)
+
+    def search(self, x: torch.Tensor):
+        beam = x[None, ...]
+
+        for _ in range(self.max_depth):
+            beam = self.next_states(beam)
+
+        y = beam.mean(0)
+
+        return y
+
+    def next_states(self, beam: torch.Tensor) -> torch.Tensor:
+        # current_states: (branching_width * n_candidates), n_batch, ..., n_batch_k, n_dim
+        candidates = self.transition(beam, self.branching_width).flatten(0, 1)
+
+        # candidates_fitness: (branching_width * n_candidates), n_batch, ..., n_batch_k, (n_dim or 1)
+        candidates_fitness = self.fitness(candidates)
+
+        # next_candidates: n_batch, ..., n_dim
+        # TODO replace with matrix multiplication
+        soft_beam = torch.sum(torch.softmax(candidates_fitness, dim=0) * candidates, dim=0)
+
+        # make sure the candidate has a single score for fitness
+        # (branching_width * n_candidates), n_batch, ..., n_batch_k
+        candidate_total_fitness = torch.mean(candidates_fitness, dim=-1)
+
+        # top scoring candidates
+        # k, n_batch, ... n_batch_k
+        topk_candidate_idx = torch.topk(candidate_total_fitness, self.beam_width, 0).indices
+
+        # k, n_batch, ..., n_batch_k, n_dim
+        topk_candidates = candidates.gather(0, topk_candidate_idx[..., None].expand(self.beam_width, *candidates.shape[1:]))
+
+        # k, n_batch, ..., n_batch_k, n_dim
+        next_beam = (soft_beam[None] + topk_candidates) / 2
+
+        return next_beam
+
 class SamplingOneToManyNetwork(nn.Module):
     def __init__(
             self,
@@ -85,7 +146,7 @@ class FitnessFunction(nn.Module):
         super(FitnessFunction, self).__init__()
         self.one_to_many = one_to_many
 
-    def forward(self, x: torch.Tensor, k: int):
+    def forward(self, x: torch.Tensor, k: int=None):
         heads = self.one_to_many(x, k)
 
         return heads.movedim(-1, 0)
@@ -95,7 +156,7 @@ class TransitionFunction(nn.Module):
         super(TransitionFunction, self).__init__()
         self.one_to_many = one_to_many
 
-    def forward(self, x: torch.Tensor, k: int):
+    def forward(self, x: torch.Tensor, k: int=None):
         heads = self.one_to_many(x, k)
 
         return heads.movedim(-1, 0)
