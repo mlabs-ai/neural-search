@@ -93,7 +93,7 @@ class SoftHardSearch(nn.Module):
         # current_states: (branching_width * n_candidates), n_batch, ..., n_batch_k, n_dim
         candidates = self.transition(beam, self.branching_width).flatten(0, 1)
 
-        # candidates_fitness: (branching_width * n_candidates), n_batch, ..., n_batch_k, 1
+        # candidates_fitness: (branching_width * n_candidates), n_batch, ..., n_batch_k
         candidates_fitness = self.fitness(candidates)
 
         # next_candidates: n_batch, ..., n_dim
