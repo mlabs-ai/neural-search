@@ -1,6 +1,10 @@
 .venv
 venv
-
+checkpoints/
+checkpoints_entropy/
+logs/
+__pycache__/
+MNIST_data/
 go_dataset.pth
 
 **.pyc
