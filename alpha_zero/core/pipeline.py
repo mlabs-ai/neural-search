@@ -676,15 +676,17 @@ def supervised_learner_loop(
             pin_memory=True,
             shuffle=True,
             drop_last=True,
+            num_workers=4,
         )
 
     val_loader = DataLoader(
             val_dataset,
             batch_size=batch_size,
             pin_memory=True,
+            num_workers=4,
             )
 
-    best_val_loss = 0
+    best_val_loss = float('inf')
     steps_no_improve = 0
 
     network.train()
@@ -727,6 +729,7 @@ def supervised_learner_loop(
                     logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
 
         pi_loss, v_loss = compute_validation_loss(network, device, val_loader)
+        print('cal;culated validation loss')
         logger.info(f"training_steps {training_steps}: Validation loss: Poliy loss {pi_loss}, value_loss {v_loss}")
         val_loss = pi_loss + v_loss
 

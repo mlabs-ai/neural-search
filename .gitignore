@@ -6,7 +6,9 @@ logs/
 __pycache__/
 MNIST_data/
 go_dataset.pth
-
+*.zip
+*.tar.gz
+*.tar
 **.pyc
 
 runs
