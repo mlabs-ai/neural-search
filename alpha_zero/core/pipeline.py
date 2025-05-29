@@ -662,7 +662,20 @@ def supervised_learner_loop(
     os.makedirs(logs_dir)
 
     set_seed(int(seed))
-    writer = CsvWriter(os.path.join(logs_dir, 'supervised_training.csv'), buffer_size=1)
+    fieldnames = [
+    'datetime',
+    'training_steps',
+    'policy_loss',
+    'value_loss',
+    'val_policy_loss',
+    'val_value_loss',
+    'learning_rate',
+    ]
+    writer = CsvWriter(
+        os.path.join(logs_dir, 'supervised_training.csv'),
+        buffer_size=1,
+        fieldnames=fieldnames,
+    )
     training_steps = 0
     network = network.to(device=device)  # the neural net
     ##getting the data
@@ -729,7 +742,13 @@ def supervised_learner_loop(
                     logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
 
         pi_loss, v_loss = compute_validation_loss(network, device, val_loader)
-        print('cal;culated validation loss')
+        stats = {
+                    'datetime': get_time_stamp(),
+                    'training_steps': training_steps,
+                    'val_policy_loss': pi_loss,
+                    'val_value_loss': v_loss,
+                    'learning_rate': lr_scheduler.get_last_lr()[0],
+                    }
         logger.info(f"training_steps {training_steps}: Validation loss: Poliy loss {pi_loss}, value_loss {v_loss}")
         val_loss = pi_loss + v_loss
 
