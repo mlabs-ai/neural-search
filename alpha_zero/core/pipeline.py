@@ -749,6 +749,7 @@ def supervised_learner_loop(
                     'val_value_loss': v_loss,
                     'learning_rate': lr_scheduler.get_last_lr()[0],
                     }
+        writer.write(OrderedDict((n, v) for n, v in stats.items()))
         logger.info(f"training_steps {training_steps}: Validation loss: Poliy loss {pi_loss}, value_loss {v_loss}")
         val_loss = pi_loss + v_loss
 
@@ -758,7 +759,7 @@ def supervised_learner_loop(
             steps_no_improve = 0
             # Optionally save the best model
             best_model_path = os.path.join(ckpt_dir, 'best_model.ckpt')
-            torch.save(network.state_dict(), best_model_path)
+            torch.save({'network': network.state_dict()}, best_model_path)
             logger.info(f'Best model saved at "{best_model_path}" with validation loss {val_loss}')
         else:
             steps_no_improve += 1
