@@ -12,6 +12,7 @@ from collections import OrderedDict, deque
 
 import pickle
 import random
+from tqdm import tqdm
 
 import torch
 import torch.nn.functional as F
@@ -316,7 +317,7 @@ def run_tournament(
 
 
     # Play multiple games
-    for game in range(num_games):
+    for game in tqdm(range(num_games), 'games played'):
         #randomly select two agents
         agent_1_name, agent_2_name = random.sample(agents_list, 2)
         logger.info(f"Starting match between {agent_1_name} and {agent_2_name}")
@@ -338,13 +339,13 @@ def run_tournament(
         loaded_state_1 = torch.load(agents[agent_1_name]["checkpoint"], map_location=device)
         cleaned_state_dict_1 = strip_prefix(loaded_state_1['network'])   # Strip `_orig_mod.` prefix
         network_1.load_state_dict(cleaned_state_dict_1)
-        logger.info(f"network 1 model loaded from checkpoint: {agents[agent_1_name]['checkpoint']}")
+        # logger.info(f"network 1 model loaded from checkpoint: {agents[agent_1_name]['checkpoint']}")
 
 
         loaded_state_2 = torch.load(agents[agent_2_name]["checkpoint"], map_location=device)
         cleaned_state_dict_2 = strip_prefix(loaded_state_2['network'])
         network_2.load_state_dict(cleaned_state_dict_2)
-        logger.info(f"network 2 model loaded from checkpoint: {agents[agent_2_name]['checkpoint']}")
+        # logger.info(f"network 2 model loaded from checkpoint: {agents[agent_2_name]['checkpoint']}")
 
          # Create MCTS players
         black_player = create_mcts_player(
@@ -366,12 +367,12 @@ def run_tournament(
 
         # Randomize roles
         if np.random.rand() < 0.5:
-            logger.info(f"Game {game + 1}: {agent_1_name} is Black, {agent_2_name} is White")
+            # logger.info(f"Game {game + 1}: {agent_1_name} is Black, {agent_2_name} is White")
             current_black_player, current_white_player = black_player, white_player
             current_black_name, current_white_name = agent_1_name, agent_2_name
             current_black_elo, current_white_elo = black_elo, white_elo
         else:
-            logger.info(f"Game {game + 1}: {agent_2_name} is Black, {agent_1_name} is White")
+            # logger.info(f"Game {game + 1}: {agent_2_name} is Black, {agent_1_name} is White")
             current_black_player, current_white_player = white_player, black_player
             current_black_name, current_white_name = agent_2_name, agent_1_name
             current_black_elo, current_white_elo = white_elo, black_elo
