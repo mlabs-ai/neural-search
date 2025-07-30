@@ -662,7 +662,20 @@ def supervised_learner_loop(
     os.makedirs(logs_dir)
 
     set_seed(int(seed))
-    writer = CsvWriter(os.path.join(logs_dir, 'supervised_training.csv'), buffer_size=1)
+    fieldnames = [
+    'datetime',
+    'training_steps',
+    'policy_loss',
+    'value_loss',
+    'val_policy_loss',
+    'val_value_loss',
+    'learning_rate',
+    ]
+    writer = CsvWriter(
+        os.path.join(logs_dir, 'supervised_training.csv'),
+        buffer_size=1,
+        fieldnames=fieldnames,
+    )
     training_steps = 0
     network = network.to(device=device)  # the neural net
     ##getting the data
@@ -676,15 +689,17 @@ def supervised_learner_loop(
             pin_memory=True,
             shuffle=True,
             drop_last=True,
+            num_workers=4,
         )
 
     val_loader = DataLoader(
             val_dataset,
             batch_size=batch_size,
             pin_memory=True,
+            num_workers=4,
             )
 
-    best_val_loss = 0
+    best_val_loss = float('inf')
     steps_no_improve = 0
 
     network.train()
@@ -727,6 +742,14 @@ def supervised_learner_loop(
                     logger.debug(f'New checkpoint for training steps {training_steps} is created at "{ckpt_file}"')
 
         pi_loss, v_loss = compute_validation_loss(network, device, val_loader)
+        stats = {
+                    'datetime': get_time_stamp(),
+                    'training_steps': training_steps,
+                    'val_policy_loss': pi_loss,
+                    'val_value_loss': v_loss,
+                    'learning_rate': lr_scheduler.get_last_lr()[0],
+                    }
+        writer.write(OrderedDict((n, v) for n, v in stats.items()))
         logger.info(f"training_steps {training_steps}: Validation loss: Poliy loss {pi_loss}, value_loss {v_loss}")
         val_loss = pi_loss + v_loss
 
@@ -736,7 +759,7 @@ def supervised_learner_loop(
             steps_no_improve = 0
             # Optionally save the best model
             best_model_path = os.path.join(ckpt_dir, 'best_model.ckpt')
-            torch.save(network.state_dict(), best_model_path)
+            torch.save({'network': network.state_dict()}, best_model_path)
             logger.info(f'Best model saved at "{best_model_path}" with validation loss {val_loss}')
         else:
             steps_no_improve += 1

@@ -12,7 +12,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from lib.layers import Residual, UnpackGrid, MultiBatchConv2d
-from lib.quantumsearch import FitnessFunction, OneToManyNetwork, QuantumSearch
+from lib.quantumsearch import FitnessFunction, OneToManyNetwork, SoftHardSearch, SoftSearch
 from lib.quantumsearch import TransitionFunction
 
 
@@ -212,7 +212,7 @@ class QuantumAlphaZeroNet(nn.Module):
         )
 
 
-        self.search = nn.Sequential(*list(QuantumSearch(
+        self.search = nn.Sequential(*list(SoftSearch(
             transition =  TransitionFunction(
                 OneToManyNetwork(
                      UnpackedResidual(nn.Sequential(
@@ -232,6 +232,118 @@ class QuantumAlphaZeroNet(nn.Module):
             max_depth = max_depth,
             beam_width = beam_width,
             branching_width = branching_width)
+            for _ in range(num_search)
+        ))
+
+
+        self.policy_head = nn.Sequential(
+            nn.Conv2d(
+                in_channels = num_filters,
+                out_channels=2,
+                kernel_size=1,
+                stride=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(num_features=2),
+
+            nn.ReLU(),
+            nn.Flatten(1),
+            nn.Linear(2 * conv_out, num_actions),
+        )
+
+        self.value_head = nn.Sequential(
+            nn.Conv2d(
+                in_channels=num_filters,
+                out_channels=1,
+                kernel_size=1,
+                stride=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(num_features=1),
+
+            nn.ReLU(),
+            nn.Flatten(1),
+            nn.Linear(1 * conv_out, num_fc_units),
+            nn.ReLU(),
+            nn.Linear(num_fc_units, 1),
+            nn.Tanh(),
+        )
+
+        initialize_weights(self)
+
+    def forward(self, x: torch.Tensor) -> NetworkOutputs:
+        """Given raw state x, predict the raw logits probability distribution for all actions,
+        and the evaluated value, all from current player's perspective."""
+
+        out = self.conv_block(x)
+        out = self.search(out)
+
+        # Predict raw logits distributions wrt policy
+        pi_logits = self.policy_head(out)
+
+        # Predict evaluated value from current player's perspective.
+        value = self.value_head(out)
+
+        return pi_logits, value
+
+
+
+class SoftHardSearchAlphaZeroNet(nn.Module):
+    """Policy network for AlphaZero agent."""
+
+    def __init__(
+        self,
+        input_shape: Tuple,
+        num_actions: int,
+        num_filters: int = 32,
+        max_depth: int = 10,
+        branching_width: int = 3,
+        beam_width: int = 3,
+        num_fc_units: int = 256,
+        num_search: int =1,
+        gomoku: bool = False,
+    ) -> None:
+        super().__init__()
+        c, h, w = input_shape
+        self.num_filters = num_filters
+        self.num_search = num_search
+        # We need to use additional padding for Gomoku to fix agent shortsighted on edge cases
+        num_padding = 3 if gomoku else 1
+
+        conv_out_hw = calc_conv2d_output((h, w), 3, 1, num_padding)
+        # FIX BUG, Python 3.7 has no math.prod()
+        conv_out = conv_out_hw[0] * conv_out_hw[1]
+
+        # First convolutional block
+        self.conv_block = nn.Sequential(
+            MultiBatchConv2d(
+                in_channels=c,
+                out_channels=num_filters,
+                kernel_size=3,
+                stride=1,
+                padding=num_padding,
+                bias=False,
+            ),
+            nn.BatchNorm2d(num_features=num_filters),
+            nn.ReLU(),
+        )
+
+        self.search = nn.Sequential(*list(
+            SoftHardSearch(
+                transition =  TransitionFunction(
+                    OneToManyNetwork(
+                        UnpackedResidual(nn.Sequential(
+                            TransitionResNetBlock(num_input_filters=num_filters, output_filter_factor=branching_width, input_size = conv_out_hw),
+                            UnpackGrid(branching_width) # Batch, ...,  3 * H -> Batch, ..., H, 3
+                        ))
+                    ),
+                ),
+                fitness=FitnessResNetBlock(num_input_filters=num_filters, num_output_filters = 1, input_size = conv_out_hw, residual=False),
+                max_depth = max_depth,
+                beam_width = beam_width,
+                branching_width = branching_width,
+                token_dims=2
+            )
             for _ in range(num_search)
         ))
 

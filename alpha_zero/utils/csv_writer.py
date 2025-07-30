@@ -13,7 +13,7 @@ import time
 class CsvWriter:
     """A logging object writing to a CSV file."""
 
-    def __init__(self, fname, buffer_size=100, flush_interval=60):
+    def __init__(self, fname, buffer_size=100, flush_interval=60, fieldnames = None):
         """Initializes a `CsvWriter`.
         Args:
           fname: File name (path) for file to be written to.
@@ -25,7 +25,8 @@ class CsvWriter:
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         self._fname = fname
-        self._fieldnames = None
+        self._user_defined_fieldnames = fieldnames
+        self._fieldnames = fieldnames
         self._header_written = False if self.check_is_empty() else True
 
         self._buffer = []
@@ -36,7 +37,8 @@ class CsvWriter:
     def write(self, values):
         """Appends given values as new row to CSV file."""
         if self._fieldnames is None:
-            self._fieldnames = values.keys()
+            self._fieldnames = self._user_defined_fieldnames or values.keys()
+
 
         self._buffer.append(values)
 
